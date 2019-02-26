@@ -1,4 +1,4 @@
-function test_learn_nse()
+
 % test learn++.nse
 
 disp('The ConceptDriftData.m file must be in the Matlab path. This');
@@ -15,7 +15,7 @@ net.base_classifier = model;  % set the base classifier in the net struct
 % generate the sea data set
 T = 200;  % number of time stamps
 N = 100;  % number of data points at each time
-[data_train, labels_train,data_test,labels_test] = ConceptDriftData('sea', T, N);
+[data_train, labels_train,data_test,labels_test] = ConceptDriftData('checkerboard', T, N);
 for t = 1:T
   % i wrote the code along time ago and i used at assume column vectors for
   % data and i wrote all the code for learn++ on github to assume row
@@ -52,4 +52,19 @@ smote_params.N = 200;
 
 figure;
 plot(errs_nse)
+figure
 plot(errs_cds,'r')
+figure
+displayData(data_train)
+
+function [] = displayData(data)
+    means = cellfun(@mean, data,'UniformOutput',false)';
+    means = cell2mat(means);
+    dims = "d" + (1:size(means,2));
+    means = array2table(means,'VariableNames',dims);
+    stackedplot(means)
+end
+
+function [transposedData] = transposeData(data)
+    tranposedData = cellfun(@transpose, data,'UniformOutput',false);
+end

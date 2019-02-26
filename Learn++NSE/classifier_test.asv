@@ -36,8 +36,13 @@ function predictions = classifier_test(model, data)
 
 switch model.type
   case 'CART'
-    predictions = predict(model.classifier, data);
-
+    predictions_raw = predictions(model.classifier(data);
+    % cart returns a cell arrary of strings; convert the predictions to a
+    % vector of indices for the class being predicted. 
+    predictions = zeros(length(predictions_raw),1);
+    for m = 1:numel(predictions)
+      predictions(m) = str2double(predictions_raw{m});
+    end
 case 'SVM'
         predictions = predict(model.classifier,data);
         % cart returns a cell arrary of strings; convert the predictions to a
