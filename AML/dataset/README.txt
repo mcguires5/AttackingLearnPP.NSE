@@ -1,1 +1,0 @@
-Downloaded from http://cs.nyu.edu/~roweis/data.html

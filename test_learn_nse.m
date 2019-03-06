@@ -5,7 +5,7 @@ disp('The ConceptDriftData.m file must be in the Matlab path. This');
 disp('file can be found: https://github.com/gditzler/ConceptDriftData ');
 addpath('../src/');
 
-model.type = 'CART';          % base classifier
+model.type = 'SVM';          % base classifier
 net.a = .5;                   % slope parameter to a sigmoid
 net.b = 10;                   % cutoff parameter to a sigmoid
 net.threshold = 0.01;         % how small is too small for error
@@ -29,11 +29,19 @@ for t = 1:T
 end
 
 % run learn++.nse
-[~,~,~,~,~,errs_nse] = learn_nse(net, data_train, labels_train, data_test, ...
-   labels_test);
+n_timestamps = length(data_train);  % total number of time stamps
+f_measure = zeros(n_timestamps, net.mclass);
+g_mean = zeros(n_timestamps, 1);
+recall = zeros(n_timestamps, net.mclass);
+precision = zeros(n_timestamps, net.mclass);
+err_nse = zeros(n_timestamps, 1);
+for ell = 1:n_timestamps
+[~,f_measure(ell,:),g_mean(ell),precision(ell,:),recall(ell,:),errs_nse(ell)] = learn_nse_for_attacking(net, data_train{ell}, labels_train{ell}, data_test{ell}, ...
+   labels_test{ell});
+end
 
 % reset the parameters of the net struct. 
-model.type = 'CART';
+model.type = 'SVM';
 net.a = .5;
 net.b = 10;
 net.threshold = 0.01; 

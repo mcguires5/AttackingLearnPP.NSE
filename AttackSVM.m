@@ -35,7 +35,9 @@ boundary = np.array(boundary);
 target = 1;
 q = 1;
 p = py.sys.path;
-insert(p,int32(0),'C:\Users\baseb_000\PycharmProjects\advlearn\')
+insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\')
+insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\poison\')
+insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\')
 Poison = py.importlib.import_module('advlearn.attacks.poison'); 
 py.importlib.reload(Poison);
 %attack_class = Poison.SVMAttack;
