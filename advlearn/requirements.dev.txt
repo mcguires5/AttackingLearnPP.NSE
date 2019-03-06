@@ -1,0 +1,5 @@
+-r requirements.txt
+matplotlib>=2.0.0
+pytest
+pylint
+mpld3
