@@ -87,6 +87,7 @@ insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\')
 
 % SVMAttack Parameters
 % Setup Boundary Regions
+% need to set this up for any dataset
 classNumber = 1; % class to attack
 mesh = 10.5
 step = 0.25;
@@ -126,7 +127,7 @@ for ell = 1:n_timestamps
 		meansData = cell2mat({[classMeans{classNumber}{1,1:n_timestamps}]});
 		meansData = reshape(meansData',n_timestamps,numDims)';
 		sindyMeans(classNumber).buildModel(meansData,1,1,n_timestamps,1);
-		
+		% need to do sindyModels for covariances, and then generate attacks
 		[attackPoints,attackLabels] = chrisAttacks(data,labels,boundary,svmPoisonAttackArgs,numberAttackPoints);
 		[~,...
 		f_measure(ell,:),...
