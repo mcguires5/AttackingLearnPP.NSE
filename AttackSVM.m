@@ -2,7 +2,7 @@ clear classes
 
 random_state = 0;
 % Setup Boundary Regions
-mesh = 10.5;
+mesh = 10.5
 step = 0.25;
 bound = mesh-0.5;
 boundary = [[-bound -bound];[bound bound]];
@@ -41,7 +41,6 @@ insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\')
 Poison = py.importlib.import_module('advlearn.attacks.poison'); 
 py.importlib.reload(Poison);
 %attack_class = Poison.SVMAttack;
-args = [];
 kwargs = pyargs('boundary', boundary, 'step_size', 0.5, 'max_steps', int32(100),'c', int32(1), 'kernel', 'rbf', 'degree', 3, 'coef0', 1, 'gamma', 1);
 attack = py.advlearn.attacks.poison.SVMAttack(kwargs);
 args = pyargs('data', np.array(X), 'labels', np.array(y));

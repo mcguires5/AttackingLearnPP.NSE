@@ -1,8 +1,8 @@
 classdef SINDy < handle
 % @Author: delengowski
 % @Date:   2019-01-24 18:01:17
-% @Last Modified by:   Delengowski_Mobile
-% @Last Modified time: 2019-02-21 14:43:56
+% @Last Modified by:   delengowski
+% @Last Modified time: 2019-03-06 18:23:35
 % This class is used for creating SINDy objects to perform sparse dynamics
 %
 % (S)parse
@@ -138,39 +138,39 @@ classdef SINDy < handle
         learnedFunctions table 
     end
 	methods % Start public methods
-		function obj = SINDy(data,dt,startTime,endTime,numTimeStepsToPredict,derivatives) % Constructor 
-			addpath(fullfile('.','sparsedynamics','sparsedynamics','utils'));
-			addpath(fullfile('.','nsumk'));
-			addpath(fullfile('.','VChooseK'));
-			addpath(fullfile('.','findjobj'));
-			obj.data = data;
-			obj.dt = dt;
-			obj.startTime = startTime;
-            if endTime > obj.startTime % check to make sure endTime is not before startTime
-				obj.endTime = endTime;
-			else
-				error('endTime must be greater than startTime');
-            end
-            obj.endTime = endTime;
-			obj.numTimeStepsToPredict = numTimeStepsToPredict;
-			if nargin == 5
-				[numTimeSteps, numDims] = size(obj.data);
-				obj.derivatives = getDerivatives(obj,numDims,numTimeSteps);
-			end
-			if nargin == 6
-                if all(size(derivatives) == size(obj.data))
-                    obj.derivatives = derivatives;
-                else
-                    error('derivatives must be same size as data');
-                end
-			end
+		function obj = SINDy() % Constructor 
+			addpath(fullfile('SINDy','sparsedynamics','sparsedynamics','utils'));
+			addpath(fullfile('SINDy','nsumk'));
+			addpath(fullfile('SINDy','VChooseK'));
+			addpath(fullfile('SINDy','findjobj'));
         end
-		function buildModel(obj)
+		function buildModel(obj,data,dt,startTime,endTime,numTimeStepsToPredict,derivatives)
 			% buildModel - Builds a model and populates the properties model, modelTimeVector, and learnedFunctions.
 			% Model is a matrix whose rows is a point in time and columns are the dimensions. modelTimeVector is a 
 			% column vector of the time steps, and learnedFunctions is a matlab table obj holding the coefficients 
 			% for each function in each dimension. 
 			% Example: obj.buildModel;
+            obj.data = data;
+            obj.dt = dt;
+            obj.startTime = startTime;
+            if endTime > obj.startTime % check to make sure endTime is not before startTime
+                obj.endTime = endTime;
+            else
+                error('endTime must be greater than startTime');
+            end
+            obj.endTime = endTime;
+            obj.numTimeStepsToPredict = numTimeStepsToPredict;
+            if nargin == 6
+                [numTimeSteps, numDims] = size(obj.data);
+                obj.derivatives = getDerivatives(obj,numDims,numTimeSteps);
+            end
+            if nargin == 7
+                if all(size(derivatives) == size(obj.data))
+                    obj.derivatives = derivatives;
+                else
+                    error('derivatives must be same size as data');
+                end
+            end
 			[numTimeSteps, numDims] = size(obj.data);
 			Theta = buildLibrary(obj,numDims);
 			Xi = performSparseDynamics(obj,Theta,numDims);
