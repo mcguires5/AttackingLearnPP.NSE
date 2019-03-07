@@ -1,7 +1,7 @@
 % Generate data or load data??
 T = 200;  % number of time stamps
 N = 100;  % number of data points at each time
-[data_train, labels_train,data_test,labels_test] = ConceptDriftData('checkerboard', T, N);
+[data_train, labels_train,data_test,labels_test] = ConceptDriftData('sea', T, N);
 for t = 1:T
   % i wrote the code along time ago and i used at assume column vectors for
   % data and i wrote all the code for learn++ on github to assume row
@@ -69,10 +69,10 @@ sindyCovariances(heightCovMat,widthCovMat) = SINDy(); % Create the array of SIND
 [sindyCovariances.nonDynamical] = deal(0);
 % TVRegDiff parameters for sindy
 [sindyCovariances.useTVRegDiff] = deal(0);
-[sindyCovariances.iter] = deal(sindy.iter); 
-[sindyCovariances.alph] = deal(sindy.alph);
-[sindyCovariances.ep] = deal(sindy.ep);
-[sindyCovariances.scale] = deal(sindy.scale);
+[sindyCovariances.iter] = deal(sindyCovariances.iter); 
+[sindyCovariances.alph] = deal(sindyCovariances.alph);
+[sindyCovariances.ep] = deal(sindyCovariances.ep);
+[sindyCovariances.scale] = deal(sindyCovariances.scale);
 [sindyCovariances.plotflag] = deal(0);
 [sindyCovariances.diagflag] = deal(0);
 
@@ -88,7 +88,7 @@ insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\')
 step_size = 0.5;
 max_steps = 100;
 c = classNumber;
-kernel = 'rbf';
+kernel = 'linear';
 degree = 3;
 coef0 = 1;
 gamma = 1;
@@ -115,6 +115,7 @@ g_mean = zeros(n_timestamps, 1);
 recall = zeros(n_timestamps, net.mclass);
 precision = zeros(n_timestamps, net.mclass);
 errs_nse = zeros(n_timestamps, 1);
+sigma = zeros(heightCovMat,widthCovMat);
 for iTStep = 1:numTimeSteps
 	if iTStep == 1 % Wait two time steps before making preditions with SINDy and attacking
 		[~,...
@@ -129,20 +130,28 @@ for iTStep = 1:numTimeSteps
 		                                         labels_test{iTStep});
 	else 
 		meansData = cell2mat({[classMeans{1:iTStep}]});
-		meansData = reshape(meansData',n_timestamps,numDims)'; % Reshape into timeStep By numDims matrix
+		meansData = reshape(meansData',iTStep,numDims)'; % Reshape into timeStep By numDims matrix
 		sindyMeans.buildModel(meansData,1,1,iTStep,1); % data,dt,startTime,endTime,numTimeStepsToPredict,<optionally derivatives>
-		covarianceData = cell2mat({[classVariances{1:iTStep}]})';
-		covIdx = zeros(heightCovMat*iTStep,widthCovMat*iTStep);
+		mu = sindyMeans.model(end,:);
+		covarianceData = cell2mat({[classVariances{1:iTStep}]});
+		covarianceData = reshape(covarianceData,heightCovMat,widthCovMat,iTStep);
 		horzCovLinIdx = 1:widthCovMat;
 		idxOfNxtRow = horzCovLinIdx(end)+1;	
 		secRowCovLinIdx = idxOfNxtRow:widthCovMat+idxOfNxtRow-1;
-		covRowIdxDiff = secRowCovLinIdx - horzCovLinIdx;
-		idxIncrements = (covRowIdxDiff:covRowIdxDiff:covRowIdxDiff*heightCovMat*iTStep)';
-        covLinIdx = repmat(horzCovLinIdx,iTStep*heightCovMat,1);
-        covLinIdx = bsxfun(@add,covLinIdx,idxIncrements);
+		covIdx = [horzCovLinIdx;secRowCovLinIdx];
+		[I,J] = ind2sub([heightCovMat widthCovMat],covIdx);
+		covSubs = [I(:) J(:)];
+		covSubs2 = repmat(covIdx,1,1,iTStep);
+		for iCov = 1:size(covSubs,1)
+			idx = covSubs2 == iCov;
+			sindyCovariances(idx(:,:,1)).buildModel(covarianceData(idx),1,1,iTStep,1);
+			sigma(idx(:,:,1)) = sindyCovariances(idx(:,:,1)).model(end,1);
+		end
+		generatedData = mvnrnd(mu,sigma,N);
+
 
 		% need to do sindyModels for covariances, and then generate attacks
-		[attackPoints,attackLabels] = chrisAttacks(data,labels,boundary,svmPoisonAttackArgs,numberAttackPoints);
+		[attackPoints,attackLabels] = chrisAttacks(generatedData,labels,boundary,svmPoisonAttackArgs,numberAttackPoints);
 		[~,...
 		f_measure(iTStep,:),...
 		g_mean(iTStep),...
