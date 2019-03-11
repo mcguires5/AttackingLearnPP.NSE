@@ -2,7 +2,7 @@
 addpath(fullfile('.','SINDy'));
 addpath(fullfile('.','Learn++NSE'));
 addpath(fullfile('.','ConceptDriftData'));
-addpath(genpath(fullfile('.','advlearn')));
+addpath(fullfile('.','advlearn','advlearn','attacks','poison'));
 %% Generate data or load data??
 T = 200;  % number of time stamps
 N = 100;  % number of data points at each time
@@ -27,9 +27,9 @@ net.threshold = 0.01;         % how small is too small for error
 net.mclass = 2;               % number of classes in the prediciton problem
 net.base_classifier = model;  % set the base classifier in the net struct
 
-%% These cell arrays are structured as {class}{1,timeStep}
+%% These cell arrays are structured as {1,timeStep}
 numTimeSteps = length(data_train);
-[numObs, numDims] = size(data_train{1});
+[numObs numDims] = size(data_train{1});
 numClasses = numel(unique(labels_train{1}));
 classLabelsIdxs = cell(1,numClasses);
 classData = cell(1,numClasses);
@@ -43,49 +43,43 @@ for iClass = 1:numClasses
 end
 
 %% Create a SINDy model for means, 1 Obj that will be continuously updated.
-sindyMeans = cell(1,numClasses); %{Class}(SINDy Obj)
-for iClass = 1:numClasses
-	sindyMeans{iClass} = SINDy(); % SINDy Object ... type help SINDy for list of what each parameter does
-	sindyMeans{iClass}.lambda = 2e-6;
-	sindyMeans{iClass}.polyOrder = 5;
-	sindyMeans{iClass}.useSine = 0;
-	sindyMeans{iClass}.sineMultiplier = 10;
-	sindyMeans{iClass}.useExp = 0;
-	sindyMeans{iClass}.expMultiplier = 10;
-	sindyMeans{iClass}.useCustomPoolData = 1;
-	sindyMeans{iClass}.nonDynamical = 0;
-	% TVRegDiff parameters for SINDy 
-	sindyMeans{iClass}.useTVRegDiff = 0;
-	sindyMeans{iClass}.iter = sindyMeans{iClass}.iter; 
-	sindyMeans{iClass}.alph = sindyMeans{iClass}.alph;
-	sindyMeans{iClass}.ep = sindyMeans{iClass}.ep;
-	sindyMeans{iClass}.scale = sindyMeans{iClass}.scale;
-	sindyMeans{iClass}.plotflag = 0;
-	sindyMeans{iClass}.diagflag = 0;
-end
+sindyMeans = SINDy(); % SINDy Object ... type help SINDy for list of what each parameter does
+sindyMeans.lambda = 2e-6;
+sindyMeans.polyOrder = 5;
+sindyMeans.useSine = 0;
+sindyMeans.sineMultiplier = 10;
+sindyMeans.useExp = 0;
+sindyMeans.expMultiplier = 10;
+sindyMeans.useCustomPoolData = 1;
+sindyMeans.nonDynamical = 0;
+% TVRegDiff parameters for SINDy 
+sindyMeans.useTVRegDiff = 0;
+sindyMeans.iter = sindyMeans.iter; 
+sindyMeans.alph = sindyMeans.alph;
+sindyMeans.ep = sindyMeans.ep;
+sindyMeans.scale = sindyMeans.scale;
+sindyMeans.plotflag = 0;
+sindyMeans.diagflag = 0;
 % Create an array of SINDy objects, the array should be equal in size to the covariance of the data, so 2 dim data is 2x2 Covariance matrix, 1 SINDy Obj for each
-sindyCovariances = cell(1,numClasses); %{Class}(Array of SINDy Objs, 1 for each value of covariance)
-[heightCovMat, widthCovMat] = size(classVariances{1}{1}); % Get size of Cov Matrix
-for iClass = 1:numClasses
-	sindyCovariances{iClass}(heightCovMat,widthCovMat) = SINDy(); % Create the array of SINDy Objects
-	% Using the below synatx [objArray.property] = deal(value); will set the property of each object in objArray to value.
-	[sindyCovariances{iClass}.lambda] = deal(2e-6);
-	[sindyCovariances{iClass}.polyOrder] = deal(5);
-	[sindyCovariances{iClass}.useSine] = deal(0);
-	[sindyCovariances{iClass}.sineMultiplier] = deal(10);
-	[sindyCovariances{iClass}.useExp] = deal(0);
-	[sindyCovariances{iClass}.expMultiplier] = deal(10);
-	[sindyCovariances{iClass}.useCustomPoolData] = deal(1);
-	[sindyCovariances{iClass}.nonDynamical] = deal(0);
-	% TVRegDiff parameters for sindy
-	[sindyCovariances{iClass}.useTVRegDiff] = deal(0);
-	[sindyCovariances{iClass}.iter] = deal(sindyCovariances{iClass}.iter); 
-	[sindyCovariances{iClass}.alph] = deal(sindyCovariances{iClass}.alph);
-	[sindyCovariances{iClass}.ep] = deal(sindyCovariances{iClass}.ep);
-	[sindyCovariances{iClass}.scale] = deal(sindyCovariances{iClass}.scale);
-	[sindyCovariances{iClass}.plotflag] = deal(0);
-	[sindyCovariances{iClass}.diagflag] = deal(0);
-end
+[heightCovMat, widthCovMat] = size(classVariances{1}); % Get size of Cov Matrix
+sindyCovariances(heightCovMat,widthCovMat) = SINDy(); % Create the array of SINDy Objects
+% Using the below synatx [objArray.property] = deal(value); will set the property of each object in objArray to value.
+[sindyCovariances.lambda] = deal(2e-6);
+[sindyCovariances.polyOrder] = deal(5);
+[sindyCovariances.useSine] = deal(0);
+[sindyCovariances.sineMultiplier] = deal(10);
+[sindyCovariances.useExp] = deal(0);
+[sindyCovariances.expMultiplier] = deal(10);
+[sindyCovariances.useCustomPoolData] = deal(1);
+[sindyCovariances.nonDynamical] = deal(0);
+% TVRegDiff parameters for sindy
+[sindyCovariances.useTVRegDiff] = deal(0);
+[sindyCovariances.iter] = deal(sindyCovariances.iter); 
+[sindyCovariances.alph] = deal(sindyCovariances.alph);
+[sindyCovariances.ep] = deal(sindyCovariances.ep);
+[sindyCovariances.scale] = deal(sindyCovariances.scale);
+[sindyCovariances.plotflag] = deal(0);
+[sindyCovariances.diagflag] = deal(0);
 
 %% paths needed for utilizing chris's library, add the paths for your system and restart matlab if matlab cant find them
 p = py.sys.path;
@@ -104,7 +98,7 @@ degree = 3;
 coef0 = 1;
 gamma = 1;
 classNumber = 1; % class to attack
-% Mesh and step is for creating boundary of attack
+
 mesh = 10.5;
 step = 0.25;
 bound = mesh-0.5;
@@ -141,27 +135,25 @@ for iTStep = 1:numTimeSteps
 												 data_test{iTStep},...
 		                                         labels_test{iTStep});
 	else 
-		for iClass = 1:numClasses
-			meansData = cell2mat({[classMeans{1:iTStep}]});
-			meansData = reshape(meansData',iTStep,numDims)'; % Reshape into timeStep By numDims matrix
-			sindyMeans.buildModel(meansData,1,1,iTStep,1); % data,dt,startTime,endTime,numTimeStepsToPredict,<optionally derivatives>
-			mu = sindyMeans.model(end,:);
-			covarianceData = cell2mat({[classVariances{1:iTStep}]});
-			covarianceData = reshape(covarianceData,heightCovMat,widthCovMat,iTStep);
-			horzCovLinIdx = 1:widthCovMat;
-			idxOfNxtRow = horzCovLinIdx(end)+1;	
-			secRowCovLinIdx = idxOfNxtRow:widthCovMat+idxOfNxtRow-1;
-			covIdx = [horzCovLinIdx;secRowCovLinIdx];
-			[I,J] = ind2sub([heightCovMat widthCovMat],covIdx);
-			covSubs = [I(:) J(:)];
-			covSubs2 = repmat(covIdx,1,1,iTStep);
-			for iCov = 1:size(covSubs,1)
-				idx = covSubs2 == iCov;
-				sindyCovariances(idx(:,:,1)).buildModel(covarianceData(idx),1,1,iTStep,1);
-				sigma(idx(:,:,1)) = sindyCovariances(idx(:,:,1)).model(end,1);
-			end
-			generatedData = mvnrnd(mu,sigma,N);
+		meansData = cell2mat({[classMeans{1:iTStep}]});
+		meansData = reshape(meansData',iTStep,numDims)'; % Reshape into timeStep By numDims matrix
+		sindyMeans.buildModel(meansData,1,1,iTStep,1); % data,dt,startTime,endTime,numTimeStepsToPredict,<optionally derivatives>
+		mu = sindyMeans.model(end,:);
+		covarianceData = cell2mat({[classVariances{1:iTStep}]});
+		covarianceData = reshape(covarianceData,heightCovMat,widthCovMat,iTStep);
+		horzCovLinIdx = 1:widthCovMat;
+		idxOfNxtRow = horzCovLinIdx(end)+1;	
+		secRowCovLinIdx = idxOfNxtRow:widthCovMat+idxOfNxtRow-1;
+		covIdx = [horzCovLinIdx;secRowCovLinIdx];
+		[I,J] = ind2sub([heightCovMat widthCovMat],covIdx);
+		covSubs = [I(:) J(:)];
+		covSubs2 = repmat(covIdx,1,1,iTStep);
+		for iCov = 1:size(covSubs,1)
+			idx = covSubs2 == iCov;
+			sindyCovariances(idx(:,:,1)).buildModel(covarianceData(idx),1,1,iTStep,1);
+			sigma(idx(:,:,1)) = sindyCovariances(idx(:,:,1)).model(end,1);
 		end
+		generatedData = mvnrnd(mu,sigma,N);
 
 
 		% need to do sindyModels for covariances, and then generate attacks
