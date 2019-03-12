@@ -2,7 +2,7 @@
 % @Date:   2019-03-06 17:52:35
 % @Last Modified by:   delengowski
 % @Last Modified time: 2019-03-06 18:06:41
-function [attackPoints,attackLabels] = chrisAttacks(data,labels,boundary,svmPoisonAttackArgs,numberAttackPoints)
+function [attackPoints,attackLabels] = chrisAttacks(data,labels,boundary,kwargs,numberAttackPoints)
 	% get input data
 	y = int32(labels);
 	x = data;
@@ -12,7 +12,7 @@ function [attackPoints,attackLabels] = chrisAttacks(data,labels,boundary,svmPois
 	py.importlib.reload(Poison);
 	% Set up attack
 	attack = py.advlearn.attacks.poison.SVMAttack(kwargs);
-	args = pyargs('data', np.array(X), 'labels', np.array(y));
+	args = pyargs('data', np.array(x), 'labels', np.array(y));
 	% Fit the data??
 	Poison.SVMAttack.fit(attack,args);
 	kwargs = pyargs('self',attack,'n_points', int32(3));
