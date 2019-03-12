@@ -32,16 +32,15 @@ numTimeSteps = length(data_train);
 [numObs, numDims] = size(data_train{1});
 numClasses = numel(unique(labels_train{1}));
 classLabelsIdxs = cell(1,numClasses);
-classData = cell(1,numClasses);
-classMeans = cell(1,numClasses);
-classVariances = cell(1,numClasses);
+classData = cell(numTimeSteps,numClasses);
+classMeans = cell(numTimeSteps,numClasses);
+classVariances = cell(numTimeSteps,numClasses);
 for iClass = 1:numClasses
 	classLabelsIdxs{iClass} = cellfun(@(x) eq(x,iClass),labels_train,'UniformOutput',false); % Get indexes for data points of classNumber at each time step
 	classData{iClass} = cellfun(@(a,b) a(b,:),data_train,classLabelsIdxs{iClass},'UniformOutput',false); % Now extract the class data using logical indexing at each time step 
-	classMeans{iClass} = cellfun(@(x) mean(x),classData{iClass},'UniformOutput',false); % Calculate the means at every time step
-	classVariances{iClass} = cellfun(@(x) cov(x),classData{iClass},'UniformOutput',false); % Calculate the covariance at every time step
+	classMeans(:,iClass) = cellfun(@(x) mean(x),classData{iClass},'UniformOutput',false); % Calculate the means at every time step
+	classVariances(:,iClass) = cellfun(@(x) cov(x),classData{iClass},'UniformOutput',false); % Calculate the covariance at every time step
 end
-
 %% Create a SINDy model for means, 1 Obj that will be continuously updated.
 sindyMeans = cell(1,numClasses); %{Class}(SINDy Obj)
 for iClass = 1:numClasses
@@ -65,7 +64,7 @@ for iClass = 1:numClasses
 end
 % Create an array of SINDy objects, the array should be equal in size to the covariance of the data, so 2 dim data is 2x2 Covariance matrix, 1 SINDy Obj for each
 sindyCovariances = cell(1,numClasses); %{Class}(Array of SINDy Objs, 1 for each value of covariance)
-[heightCovMat, widthCovMat] = size(classVariances{1}{1}); % Get size of Cov Matrix
+[heightCovMat, widthCovMat] = size(classVariances{1,1}); % Get size of Cov Matrix
 for iClass = 1:numClasses
 	sindyCovariances{iClass}(heightCovMat,widthCovMat) = SINDy(); % Create the array of SINDy Objects
 	% Using the below synatx [objArray.property] = deal(value); will set the property of each object in objArray to value.
@@ -96,6 +95,7 @@ insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\')
 %% SVMAttack Parameters
 % Setup Boundary Regions
 % need to set this up for any dataset
+classNumber = 1; % class to attack
 step_size = 0.5;
 max_steps = 100;
 c = classNumber;
@@ -103,7 +103,6 @@ kernel = 'linear';
 degree = 3;
 coef0 = 1;
 gamma = 1;
-classNumber = 1; % class to attack
 % Mesh and step is for creating boundary of attack
 mesh = 10.5;
 step = 0.25;
@@ -127,8 +126,21 @@ g_mean = zeros(n_timestamps, 1);
 recall = zeros(n_timestamps, net.mclass);
 precision = zeros(n_timestamps, net.mclass);
 errs_nse = zeros(n_timestamps, 1);
-sigma = zeros(heightCovMat,widthCovMat);
-for iTStep = 1:numTimeSteps
+generatedData = cell(2,numTimeSteps); % {data/labels,TimeStep}, row 1 is data, row 2 is labels
+mu = cell(numClasses,numTimeSteps);
+mu(:) = {zeros(1,numDims)};
+sigma = cell(numClasses,numTimeSteps);
+sigma(:) = {zeros(heightCovMat,widthCovMat)};
+% Does covariance matrix indexing
+horzCovLinIdx = 1:widthCovMat;
+idxOfNxtRow = horzCovLinIdx(end)+1;	
+secRowCovLinIdx = idxOfNxtRow:widthCovMat+idxOfNxtRow-1;
+covIdx = [horzCovLinIdx;secRowCovLinIdx];
+%[I,J] = ind2sub([heightCovMat widthCovMat],covIdx);
+%covSubs = [I(:) J(:)];
+covSubs = cell(numTimeSteps,1);
+covSubs(:) = {covIdx};
+for iTStep = 3:numTimeSteps
 	if iTStep == 1 % Wait two time steps before making preditions with SINDy and attacking
 		[~,...
 		f_measure(iTStep,:),...
@@ -142,28 +154,19 @@ for iTStep = 1:numTimeSteps
 		                                         labels_test{iTStep});
 	else 
 		for iClass = 1:numClasses
-			meansData = cell2mat({[classMeans{1:iTStep}]});
-			meansData = reshape(meansData',iTStep,numDims)'; % Reshape into timeStep By numDims matrix
-			sindyMeans.buildModel(meansData,1,1,iTStep,1); % data,dt,startTime,endTime,numTimeStepsToPredict,<optionally derivatives>
-			mu = sindyMeans.model(end,:);
-			covarianceData = cell2mat({[classVariances{1:iTStep}]});
-			covarianceData = reshape(covarianceData,heightCovMat,widthCovMat,iTStep);
-			horzCovLinIdx = 1:widthCovMat;
-			idxOfNxtRow = horzCovLinIdx(end)+1;	
-			secRowCovLinIdx = idxOfNxtRow:widthCovMat+idxOfNxtRow-1;
-			covIdx = [horzCovLinIdx;secRowCovLinIdx];
-			[I,J] = ind2sub([heightCovMat widthCovMat],covIdx);
-			covSubs = [I(:) J(:)];
-			covSubs2 = repmat(covIdx,1,1,iTStep);
+			means = cell2mat(classMeans(1:iTStep,iClass));
+			sindyMeans{iClass}.buildModel(means,1,1,iTStep,1); % data,dt,startTime,endTime,numTimeStepsToPredict,<optionally derivatives>
+			mu{iClass,iTStep+1} = sindyMeans{iClass}.model(end,:);
+			covariance = cell2mat(classVariances(1:iTStep,iClass));
 			for iCov = 1:size(covSubs,1)
-				idx = covSubs2 == iCov;
-				sindyCovariances(idx(:,:,1)).buildModel(covarianceData(idx),1,1,iTStep,1);
+				idx = covSubs2(1:iTStep*heightCovMat,:) == iCov;
+				sindyCovariances(idx(:,:)).buildModel(covarianceData(idx),1,1,iTStep,1);
 				sigma(idx(:,:,1)) = sindyCovariances(idx(:,:,1)).model(end,1);
-			end
-			generatedData = mvnrnd(mu,sigma,N);
-		end
-
-
+            end
+            generatedData{iClass}{iTStep+1} = mvnrnd(mu{iClass,iTStep},sigma{iClass,iTStep},N);
+            
+        end
+        
 		% need to do sindyModels for covariances, and then generate attacks
 		[attackPoints,attackLabels] = chrisAttacks(generatedData,labels,boundary,svmPoisonAttackArgs,numberAttackPoints);
 		[~,...
