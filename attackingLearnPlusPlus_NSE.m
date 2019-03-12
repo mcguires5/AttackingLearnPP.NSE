@@ -6,7 +6,15 @@ addpath(genpath(fullfile('.','advlearn')));
 %% Generate data or load data??
 T = 200;  % number of time stamps
 N = 100;  % number of data points at each time
-[data_train, labels_train,data_test,labels_Nontest] = ConceptDriftData('sea', T, N);
+[data_train, labels_train,data_test,labels_test] = ConceptDriftData('sea', T, N);
+dataset = "FG_2C_2D";
+x = load("Synthetic Datasets\" + dataset + ".mat");
+data_train = x.(dataset).train_data;
+data_test = x.(dataset).test_data;
+labels_test = x.(dataset).test_labels;
+labels_train = x.(dataset).train_labels;
+T = length(data_train);
+N = x.(dataset).drift;
 for t = 1:T
   % i wrote the code along time ago and i used at assume column vectors for
   % data and i wrote all the code for learn++ on github to assume row
