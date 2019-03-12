@@ -6,6 +6,7 @@ function [attackPoints,attackLabels] = chrisAttacks(data,labels,boundary,svmPois
 	% get input data
 	y = int32(labels);
 	x = data;
+    np = py.importlib.import_module('numpy');
 	boundary = np.array(boundary);
 	Poison = py.importlib.import_module('advlearn.attacks.poison'); 
 	py.importlib.reload(Poison);
