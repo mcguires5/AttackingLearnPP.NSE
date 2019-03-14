@@ -10,9 +10,9 @@ for file = files'
         labels2 = reshape(labels, obj.drift, 1,length(labels)/obj.drift);
         for iDepth = 1:length(data)/obj.drift
             TrainDataCell{iDepth} = data2(1:length(data2)/2,:,iDepth)';
-            TrainlabelsCell{iDepth} = labels2(1:length(data2)/2,:,iDepth);
+            TrainlabelsCell{iDepth} = labels2(1:length(data2)/2,:,iDepth)';
             TestDataCell{iDepth} = data2(length(data2)/2+1:end,:,iDepth)';
-            TestlabelsCell{iDepth} = labels2(length(data2)/2+1:end,:,iDepth);
+            TestlabelsCell{iDepth} = labels2(length(data2)/2+1:end,:,iDepth)';
         end
         newstruct = 'train_data';
         [obj.(newstruct)] = TrainDataCell;
