@@ -4,10 +4,10 @@ addpath(fullfile('.','Learn++NSE'));
 addpath(fullfile('.','ConceptDriftData'));
 addpath(genpath(fullfile('.','advlearn')));
 %% Generate data or load data??
-T = 200;  % number of time stamps
-N = 100;  % number of data points at each time
-[data_train, labels_train,data_test,labels_test] = ConceptDriftData('sea', T, N);
-dataset = "FG_2C_2D";
+%T = 200;  % number of time stamps
+%N = 100;  % number of data points at each time
+%[data_train, labels_train,data_test,labels_test] = ConceptDriftData('sea', T, N);
+dataset = "X2CDT";
 x = load("Synthetic Datasets\" + dataset + ".mat");
 data_train = x.(dataset).train_data;
 data_test = x.(dataset).test_data;
@@ -40,7 +40,7 @@ numTimeSteps = length(data_train);
 [numObs, numDims] = size(data_train{1});
 numClasses = numel(unique(labels_train{1}));
 classLabelsIdxs = cell(1,numClasses);
-classData = cell(numTimeSteps,numClasses);
+classData = cell(1,numClasses);
 classMeans = cell(numTimeSteps,numClasses);
 classVariances = cell(numTimeSteps,numClasses);
 for iClass = 1:numClasses
@@ -54,7 +54,7 @@ sindyMeans = cell(1,numClasses); %{Class}(SINDy Obj)
 for iClass = 1:numClasses
 	sindyMeans{iClass} = SINDy(); % SINDy Object ... type help SINDy for list of what each parameter does
 	sindyMeans{iClass}.lambda = 2e-6;
-	sindyMeans{iClass}.polyOrder = 5;
+	sindyMeans{iClass}.polyOrder = 2;
 	sindyMeans{iClass}.useSine = 0;
 	sindyMeans{iClass}.sineMultiplier = 10;
 	sindyMeans{iClass}.useExp = 0;
@@ -121,8 +121,8 @@ attackLabels = cell(1,numTimeSteps);
 attackLabels(:) = {zeros(numberAttackPoints,1)};
 bound = mesh-0.5;
 boundary = [[-bound -bound];[bound bound]];
-np = py.importlib.import_module('numpy');
-boundary = np.array(boundary);
+%np = py.importlib.import_module('numpy');
+%boundary = np.array(boundary);
 svmPoisonAttackArgs = pyargs('boundary', boundary,...
 							 'step_size', step_size,...
 							  'max_steps', int32(max_steps),...
@@ -197,12 +197,17 @@ for iTStep = 1:numTimeSteps
             generatedData{iClass,iTStep+1} = mvnrnd(mu{iClass,iTStep+1},sigma{iClass,iTStep+1},N/2);
             generatedLabels{iClass,iTStep+1} = repmat(iClass,N/2,1);
         end
+        dataToAttack = generatedData{1,iTStep+1};
+        labelsToAttack = generatedLabels{1,iTStep+1};
+        for iClass = 2:numClasses
+           dataToAttack = [dataToAttack; generatedData{iClass,iTStep+1}];
+           labelsToAttack = [labelsToAttack; generatedLabels{iClass,iTStep+1}];
+        end
         [attackPoints{iTStep+1},attackLabels{iTStep+1}] = ...
-            chrisAttacks(generatedData{iClass,iTStep+1},...
-                         generatedLabels{iClass,iTStep+1},...
+            chrisAttacks(dataToAttack,...
+                         labelsToAttack,...
                          boundary,svmPoisonAttackArgs,numberAttackPoints);
 
-		% need to do sindyModels for covariances, and then generate attacks
 		[~,...
 		f_measure(iTStep,:),...
 		g_mean(iTStep),...
@@ -228,9 +233,25 @@ for iTStep = 1:numTimeSteps
             generatedData{iClass,iTStep+1} = mvnrnd(mu{iClass,iTStep},sigma{iClass,iTStep},N/2);
             generatedLabels{iClass,iTStep+1} = repmat(iClass,N/2,1);
         end
+        dataToAttack = generatedData{1,iTStep+1};
+        labelsToAttack = generatedLabels{1,iTStep+1};
+        for iClass = 2:numClasses
+           dataToAttack = [dataToAttack; generatedData{iClass,iTStep+1}];
+           labelsToAttack = [labelsToAttack; generatedLabels{iClass,iTStep+1}];
+        end
         [attackPoints{iTStep+1},attackLabels{iTStep+1}] = ...
-            chrisAttacks(generatedData{iClass,iTStep+1},...
-                         generatedLabels{iClass,iTStep+1},...
+            chrisAttacks(dataToAttack,...
+                         labelsToAttack,...
                          boundary,svmPoisonAttackArgs,numberAttackPoints);
+        [~,...
+		f_measure(iTStep,:),...
+		g_mean(iTStep),...
+		precision(iTStep,:),...
+		recall(iTStep,:),...
+		errs_nse(iTStep)] = learn_nse_for_attacking(net,...
+												 [data_train{iTStep};attackPoints{iTStep}],...
+												 [labels_train{iTStep};attackPoints{iTStep}],...
+												 data_test{iTStep},...
+		                                         labels_test{iTStep});
     end
 end
