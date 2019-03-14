@@ -1,5 +1,6 @@
 files = dir('Nonstationary Datasets(Processed)/*.mat');
 for file = files'
+    clearvars -except file files
     x = load(file.name);
     disp(file.name)
     obj = x.(file.name(1:end-4));
