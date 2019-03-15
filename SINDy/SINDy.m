@@ -162,7 +162,8 @@ classdef SINDy < handle
             obj.numTimeStepsToPredict = numTimeStepsToPredict;
             if nargin == 6
                 [numTimeSteps, numDims] = size(obj.data);
-                obj.derivatives = getDerivatives(obj,numDims,numTimeSteps);
+                derivativesNotIncluded = true;
+                obj.derivatives = getDerivatives(obj,numDims,numTimeSteps,derivativesNotIncluded);
             end
             if nargin == 7
                 if all(size(derivatives) == size(obj.data))
@@ -440,8 +441,8 @@ classdef SINDy < handle
 			learnedFunctions = struct2table(learnedFunctions);
 			learnedFunctions.Properties.RowNames = cellstr(Functions);		
 		end
-    	function derivatives = getDerivatives(obj,numDims,numTimeSteps)
-			if all(obj.derivatives ==  [0 0 0;0 0 0]) % I.e. if derivatives weren't included in the constructor
+    	function derivatives = getDerivatives(obj,numDims,numTimeSteps,derivativesNotIncluded)
+			if derivativesNotIncluded % I.e. if derivatives weren't included in the constructor
 				if obj.useTVRegDiff == true
 			        % If we use TVRegDiff to calculate derivatives, make sure the 
 			        % appropriate hyperparameters, functionOptions, and printingFlags

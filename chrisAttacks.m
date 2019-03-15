@@ -19,5 +19,5 @@ function [attackPoints,attackLabels] = chrisAttacks(data,labels,boundary,kwargs,
 	% Get attack data
 	attackData = Poison.SVMAttack.attack(kwargs);
 	attackPoints = double(attackData{1});
-	attackLabels = double(attackLabels{2});
+	attackLabels = double(attackData{2});
 end
