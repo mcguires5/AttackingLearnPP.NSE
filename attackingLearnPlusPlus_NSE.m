@@ -11,22 +11,16 @@ addpath(genpath(fullfile('.','advlearn')));
 %[data_train, labels_train,data_test,labels_test] = ConceptDriftData('sea', T, N);
 dataset = "X2CDT";
 x = load("Synthetic Datasets\" + dataset + ".mat");
-data_train = x.(dataset).train_data;
-data_test = x.(dataset).test_data;
-labels_test = x.(dataset).test_labels;
-labels_train = x.(dataset).train_labels;
+data_train = x.(dataset).dataTrain;
+data_test = x.(dataset).dataTest;
+labels_test = x.(dataset).labelsTest;
+labels_train = x.(dataset).labelsTrain;
 T = length(data_train);
-N = x.(dataset).drift;
 for t = 1:T
-  % i wrote the code along time ago and i used at assume column vectors for
-  % data and i wrote all the code for learn++ on github to assume row
-  % vectors. the primary reasoning for this is that the stats toolbox in
-  % matlab uses row vectors for operations like mean, cov and the
-  % classifiers like CART and NB
-  data_train{t} = data_train{t}';
-  labels_train{t} = labels_train{t}';
-  data_test{t} = data_test{t}';
-  labels_test{t} = labels_test{t}';
+  data_train{t} = data_train{t};
+  labels_train{t} = labels_train{t};
+  data_test{t} = data_test{t};
+  labels_test{t} = labels_test{t};
 end
 %% These cell arrays are structured as {class}{1,timeStep}
 numTimeSteps = length(data_train);
@@ -129,10 +123,10 @@ atkSet.step = 0.25;
 genDistr = repmat(struct("data",zeros(numObs,numDims),"labels",zeros(numObs,1)),1,numTimeSteps);
 atkData = repmat(struct("points",zeros(atkSet.numAtkPts,numDims),...
                            "labels",zeros(atkSet.numAtkPts,1)),1,numTimeSteps);
-[genDistr(1:atkSet.timeToAttack).data] = deal(0);
-[genDistr(1:atkSet.timeToAttack).labels] = deal(0);
-[atkData(1:atkSet.timeToAttack).points] = deal(0);
-[atkData(1:atkSet.timeToAttack).labels] = deal(0);
+[genDistr(1:atkSet.timeToAttack-1).data] = deal(0);
+[genDistr(1:atkSet.timeToAttack-1).labels] = deal(0);
+[atkData(1:atkSet.timeToAttack-1).points] = deal(0);
+[atkData(1:atkSet.timeToAttack-1).labels] = deal(0);
 %np = py.importlib.import_module('numpy');
 %% run learn++.nse, and attack
 nseResults = repmat(struct("f_measure",zeros(1,net.mclass),...
@@ -146,11 +140,11 @@ for iTStep = 1:numTimeSteps
             SINDy(iTStep,iClass).buildModel(SINDyData(iTStep,iClass).mu,1,1,iTStep,1);
             % Generate distribution for next time step
             % last row of SINDy.model is the predicted time step
-            genDistr(iTStep+1,iClass).data(classInfo(iTStep,iClass).idx) = ...
+            genDistr(iTStep+1,iClass).data(classInfo(iTStep,iClass).idx,:) = ...
                                mvnrnd(SINDy(iTStep,iClass).model(end,:),...
                                       SINDyData(iTStep,iClass).sigma,...
                                       classInfo(iTStep,iClass).numObs);
-            genDistr(iTStep+1,iClass).labels(classInfo(iTStep,iClass).idx) = ...
+            genDistr(iTStep+1,iClass).labels(classInfo(iTStep,iClass).idx,:) = ...
                           repmat(iClass,classInfo(iTStep,iClass).numObs,1);
         end
     end
@@ -173,7 +167,6 @@ for iTStep = 1:numTimeSteps
            atkSet.boundary(iDim,1) = minBounds(iDim);
            atkSet.boundary(iDim,2) = maxBounds(iDim);
         end
-        %atkSet.boundary = np.array(boundary);
         svmPoisonAttackArgs = pyargs('boundary', atkSet.boundary,...
 							 'step_size', atkSet.step_size,...
 							  'max_steps', int32(atkSet.max_steps),...

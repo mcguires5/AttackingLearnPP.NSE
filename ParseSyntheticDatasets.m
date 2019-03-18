@@ -5,26 +5,35 @@ for file = files'
     disp(file.name)
     obj = x.(file.name(1:end-4));
     labels = obj.labels;
+    classLabels = unique(labels);
     data = obj.data;
-    if mod(length(data),obj.drift) == 0   
-        data2 = reshape(data, obj.drift, size(data,2),length(data)/obj.drift);
-        labels2 = reshape(labels, obj.drift, 1,length(labels)/obj.drift);
-        for iDepth = 1:length(data)/obj.drift
-            TrainDataCell{iDepth} = data2(1:length(data2)/2,:,iDepth)';
-            TrainlabelsCell{iDepth} = labels2(1:length(data2)/2,:,iDepth)';
-            TestDataCell{iDepth} = data2(length(data2)/2+1:end,:,iDepth)';
-            TestlabelsCell{iDepth} = labels2(length(data2)/2+1:end,:,iDepth)';
-        end
-        newstruct = 'train_data';
-        [obj.(newstruct)] = TrainDataCell;
-        newstruct = 'train_labels';
-        [obj.(newstruct)] = TrainlabelsCell;
-        newstruct = 'test_labels';
-        [obj.(newstruct)] = TestlabelsCell;
-        newstruct = 'test_data';
-        [obj.(newstruct)] = TestDataCell;
-        eval([file.name(1:end-4),' = obj'])
-        % Do some stuff
-        save("Synthetic Datasets\" + file.name,file.name(1:end-4));
+    idx = [obj.trainInd(1,:);obj.testInd];
+    for iTStep = 1:obj.numBatches+1
+       dataStep = data(idx(iTStep,1):idx(iTStep,2),:);
+       labelStep = labels(idx(iTStep,1):idx(iTStep,2),:);
+       for iClass = classLabels'
+          classData = dataStep(labelStep == iClass,:);
+          linearIdx = 1:size(classData,1);
+          if iClass == 1
+              [trainSet,trainSetIdx] = datasample(classData,floor(size(classData,1)/2),'Replace',false);
+              dataTrain{iTStep} = trainSet;
+              labelsTrain{iTStep} = repmat(iClass,floor(size(classData,1)/2),1);
+              labelsTest{iTStep} = repmat(iClass,floor(size(classData,1)/2),1);
+              dataTest{iTStep} = setdiff(classData,trainSet,'rows');
+          elseif iClass > 1
+           trainSet = datasample(classData,floor(size(classData,1)/2),'Replace',false);
+           dataTrain{iTStep} = [dataTrain{iTStep};trainSet];
+           labelsTrain{iTStep} = [labelsTrain{iTStep};repmat(iClass,floor(size(classData,1)/2),1)];
+           labelsTest{iTStep} = [labelsTest{iTStep};repmat(iClass,floor(size(classData,1)/2),1)];
+           dataTest{iTStep} = [dataTest{iTStep};setdiff(classData,trainSet,'rows')];
+           end
+       end
     end
+   blah.dataTrain = dataTrain;
+   blah.labelsTrain = labelsTrain;
+   blah.labelsTest = labelsTest;
+   blah.dataTest = dataTest;
+   eval([file.name(1:end-4),' = blah;']);
+    % Do some stuff
+    save("Synthetic Datasets\" + file.name,file.name(1:end-4));
 end
