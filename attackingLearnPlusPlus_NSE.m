@@ -79,23 +79,27 @@ net.threshold = 0.01;         % how small is too small for error
 net.mclass = 2;               % number of classes in the prediciton problem
 net.base_classifier = model;  % set the base classifier in the net struct
 %% Create a SINDy model for means, 1 Obj that will be continuously updated.
-SINDy(1:numTimeSteps,1:numClasses) = SINDy(); % SINDy Object ... type help SINDy for list of what each parameter does
-[SINDy.lambda] = deal(2e-6);
-[SINDy.polyOrder] = deal(2);
-[SINDy.useSine] = deal(0);
-[SINDy.sineMultiplier] = deal(10);
-[SINDy.useExp] = deal(0);
-[SINDy.expMultiplier] = deal(10);
-[SINDy.useCustomPoolData] = deal(1);
-[SINDy.nonDynamical] = deal(0);
+for iTStep = numTimeSteps:-1:1
+    for iClass = numClasses:-1:1
+        SINDyArray(numTimeSteps,numClasses) = SINDy(); % SINDy Object ... type help SINDy for list of what each parameter does
+    end
+end
+[SINDyArray.lambda] = deal(8e-3);
+[SINDyArray.polyOrder] = deal(1);
+[SINDyArray.useSine] = deal(0);
+[SINDyArray.sineMultiplier] = deal(10);
+[SINDyArray.useExp] = deal(0);
+[SINDyArray.expMultiplier] = deal(10);
+[SINDyArray.useCustomPoolData] = deal(1);
+[SINDyArray.nonDynamical] = deal(0);
 % TVRegDiff parameters for SINDy 
-[SINDy.useTVRegDiff] = deal(0);
-[SINDy.iter] = deal(10); 
-[SINDy.alph] = deal(0.00002);
-[SINDy.ep] = deal(1e12);
-[SINDy.scale] = deal("small");
-[SINDy.plotflag] = deal(0);
-[SINDy.diagflag] = deal(0);
+[SINDyArray.useTVRegDiff] = deal(0);
+[SINDyArray.iter] = deal(10); 
+[SINDyArray.alph] = deal(0.00002);
+[SINDyArray.ep] = deal(1e12);
+[SINDyArray.scale] = deal("small");
+[SINDyArray.plotflag] = deal(0);
+[SINDyArray.diagflag] = deal(0);
 %% paths needed for utilizing chris's library, add the paths for your system and restart matlab if matlab cant find them
 p = py.sys.path;
 insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\')
@@ -108,7 +112,7 @@ insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\')
 % Setup Boundary Regions
 % need to set this up for any dataset
 atkSet.step_size = 0.5;
-atkSet.timeToAttack = 4;
+atkSet.timeToAttack = 3;
 atkSet.max_steps = 100;
 atkSet.c = 1;
 atkSet.kernel = 'linear';
@@ -137,14 +141,14 @@ nseResults = repmat(struct("f_measure",zeros(1,net.mclass),...
 for iTStep = 1:numTimeSteps
     if iTStep >= atkSet.timeToAttack-1 % dont start attacking until timestep before time to attack
         for iClass = 1:numClasses
-            SINDy(iTStep,iClass).buildModel(SINDyData(iTStep,iClass).mu,1,1,iTStep,1);
+            SINDyArray(iTStep,iClass).buildModel(SINDyData(iTStep,iClass).mu,1,1,iTStep,1);
             % Generate distribution for next time step
             % last row of SINDy.model is the predicted time step
-            genDistr(iTStep+1,iClass).data(classInfo(iTStep,iClass).idx,:) = ...
-                               mvnrnd(SINDy(iTStep,iClass).model(end,:),...
+            genDistr(iTStep+1).data(classInfo(iTStep,iClass).idx,:) = ...
+                               mvnrnd(SINDyArray(iTStep,iClass).model(end,:),...
                                       SINDyData(iTStep,iClass).sigma,...
                                       classInfo(iTStep,iClass).numObs);
-            genDistr(iTStep+1,iClass).labels(classInfo(iTStep,iClass).idx,:) = ...
+            genDistr(iTStep+1).labels(classInfo(iTStep,iClass).idx,:) = ...
                           repmat(iClass,classInfo(iTStep,iClass).numObs,1);
         end
     end
@@ -167,19 +171,10 @@ for iTStep = 1:numTimeSteps
            atkSet.boundary(iDim,1) = minBounds(iDim);
            atkSet.boundary(iDim,2) = maxBounds(iDim);
         end
-        svmPoisonAttackArgs = pyargs('boundary', atkSet.boundary,...
-							 'step_size', atkSet.step_size,...
-							  'max_steps', int32(atkSet.max_steps),...
-							  'c', int32(atkSet.c),...
-							  'kernel', atkSet.kernel,...
-							  'degree', atkSet.degree,...
-							   'coef0', atkSet.coef0,...
-							   'gamma', atkSet.gamma);
         [atkData(iTStep).points,atkData(iTStep).labels] = ...
                                     chrisAttacks(genDistr(iTStep).data,...
                                                  genDistr(iTStep).labels,...
-                                                 boundary,...
-                                                 svmPoisonAttackArgs);
+                                                 atkSet);
 		[~,...
 		nseResults(iTStep).f_measure,...
 		nseResults(iTStep).g_mean,...
@@ -188,7 +183,7 @@ for iTStep = 1:numTimeSteps
 		nseResults(iTStep).errs_nse] = ...
         learn_nse_for_attacking(net,...
                                 [nseData(iTStep).dataTrain;atkData(iTStep).points],...
-                                [nseData(iTStep).labelsTrain;atkData(iTStep).labels],...
+                                [nseData(iTStep).labelsTrain;atkData(iTStep).labels'],...
                                 nseData(iTStep).dataTest,...
                                 nseData(iTStep).labelsTrain);
 

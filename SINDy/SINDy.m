@@ -2,7 +2,7 @@ classdef SINDy < handle
 % @Author: delengowski
 % @Date:   2019-01-24 18:01:17
 % @Last Modified by:   delengowski
-% @Last Modified time: 2019-03-06 18:23:35
+% @Last Modified time: 2019-03-18 19:17:36
 % This class is used for creating SINDy objects to perform sparse dynamics
 %
 % (S)parse
