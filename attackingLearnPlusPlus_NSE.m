@@ -32,21 +32,21 @@ end
 numTimeSteps = length(data_train);
 [numObs, numDims] = size(data_train{1});
 numClasses = numel(unique(labels_train{1}));
-classLabelsIdxs = cell(1,numClasses);
-classData = cell(1,numClasses);
+classLabelsIdxs = cell(numTimeSteps,numClasses);
+classData = cell(numTimeSteps,numClasses);
 classMeans = cell(numTimeSteps,numClasses);
 classVariances = cell(numTimeSteps,numClasses);
 numObsPerClass = cell(numTimeSteps,numClasses);
 for iClass = 1:numClasses
-	classLabelsIdxs{iClass} = cellfun(@(x) eq(x,iClass),labels_train,...
+	[classLabelsIdxs(:,iClass)] = cellfun(@(x) eq(x,iClass),labels_train',...
                               'UniformOutput',false); % Get indexes for data points of classNumber at each time step
-	classData{iClass} = cellfun(@(a,b) a(b,:),data_train,classLabelsIdxs{iClass},...
+	[classData(:,iClass)] = cellfun(@(a,b) a(b,:),data_train',classLabelsIdxs(:,iClass),...
                         'UniformOutput',false); % Now extract the class data using logical indexing at each time step 
-	classMeans(:,iClass) = cellfun(@(x) mean(x),classData{iClass},...
+	[classMeans(:,iClass)] = cellfun(@(x) mean(x),classData(:,iClass),...
                            'UniformOutput',false); % Calculate the means at every time step
-	classVariances(:,iClass) = cellfun(@(x) cov(x),classData{iClass},...
+	[classVariances(:,iClass)] = cellfun(@(x) cov(x),classData(:,iClass),...
                                'UniformOutput',false); % Calculate the covariance at every time step
-    numObsPerClass(:,iClass) = cellfun(@(x) size(x,1), classData{iClass},...
+    [numObsPerClass(:,iClass)] = cellfun(@(x) size(x,1), classData(:,iClass),...
                                'UniformOutput',false);
 end
 %% structure array of variables and stuff, each row is a time step
@@ -58,22 +58,25 @@ nseData = repmat(struct("dataTrain",zeros(numObs,numDims),...
 [nseData.dataTest] = data_test{:};
 [nseData.labelsTrain] = labels_train{:};
 [nseData.labelsTest] = labels_test{:};
+classInfo = repmat(struct("mu",zeros(1,numDims),...
+                               "sigma",zeros(numDims,numDims),...
+                               "data",zeros(numObs,numDims),...
+                               "numObs",0,...
+                               "idx",false(numObs,1)),numTimeSteps,numClasses);
+[classInfo(:,:).mu] = classMeans{:,:};
+[classInfo(:,:).sigma] = classVariances{:,:};
+[classInfo(:,:).data] = classData{:,:};
+[classInfo(:,:).numObs] = numObsPerClass{:,:};
+[classInfo(:,:).idx] = classLabelsIdxs{:,:};
+%% Prepare data for SINDy
+SINDyData = repmat(struct("mu",0,"sigma",0),numTimeSteps,numClasses);
 for iClass = 1:numClasses
-    SINDyData.("muC"+iClass) = 0;
-    SINDyData.("sigmaC"+iClass) = 0;
-    SINDyData.("dataC"+iClass) = 0;
-    SINDyData.("numObsC"+iClass) = 0;
-    SINDyData.("idxC"+iClass) = 0;
+    for iTStep = 2:numTimeSteps
+        SINDyData(iTStep,iClass).mu = vertcat(classInfo(1:iTStep,iClass).mu);
+        SINDyData(iTStep,iClass).sigma = classInfo(iTStep-1,iClass).sigma;
+    end
 end
-SINDyData = repmat(SINDyData,1,numTimeSteps);
-for iClass = 1:numClasses
-    [SINDyData.("muC"+iClass)] = classMeans{:,iClass};
-    [SINDyData.("sigmaC"+iClass)] = classVariances{:,iClass};
-    [SINDyData.("dataC"+iClass)] = classData{iClass}{:};
-    [SINDyData.("numObsC"+iClass)] = numObsPerClass{:,iClass};
-    [SINDyData.("idxC"+iClass)] = classLabelsIdxs{iClass}{:};
-end
-clearvars -except numTimeSteps numObs numDims nseData numClasses dataset SINDyData
+clearvars -except numTimeSteps numObs numDims nseData numClasses dataset classInfo SINDyData
 %% Classifier parameters
 model.type = 'SVM';          % base classifier
 net.a = .5;                   % slope parameter to a sigmoid
@@ -101,12 +104,12 @@ SINDy(1:numTimeSteps,1:numClasses) = SINDy(); % SINDy Object ... type help SINDy
 [SINDy.diagflag] = deal(0);
 %% paths needed for utilizing chris's library, add the paths for your system and restart matlab if matlab cant find them
 p = py.sys.path;
-% insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\')
-% insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\poison\')
-% insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\')
-insert(p,int32(0),'C:\Users\Delengowski-Mobile\Documents\Gits\AttackingLearnPP.NSE\advlearn\')
-insert(p,int32(0),'C:\Users\Delengowski-Mobile\Documents\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\poison\')
-insert(p,int32(0),'C:\Users\Delengowski-Mobile\Documents\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\')
+insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\')
+insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\poison\')
+insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\')
+% insert(p,int32(0),'C:\Users\Delengowski-Mobile\Documents\Gits\AttackingLearnPP.NSE\advlearn\')
+% insert(p,int32(0),'C:\Users\Delengowski-Mobile\Documents\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\poison\')
+% insert(p,int32(0),'C:\Users\Delengowski-Mobile\Documents\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\')
 %% SVMAttack Parameters
 % Setup Boundary Regions
 % need to set this up for any dataset
@@ -123,11 +126,11 @@ atkSet.numAtkPts = 3;
 atkSet.mesh = 10.5;
 atkSet.step = 0.25;
 % variables to hold attack points and generated data sets
-SINDyGen = repmat(struct("data",zeros(numObs,numDims),"labels",zeros(numObs,1)),1,numTimeSteps);
+genDistr = repmat(struct("data",zeros(numObs,numDims),"labels",zeros(numObs,1)),1,numTimeSteps);
 atkData = repmat(struct("points",zeros(atkSet.numAtkPts,numDims),...
                            "labels",zeros(atkSet.numAtkPts,1)),1,numTimeSteps);
-[SINDyGen(1:atkSet.timeToAttack).data] = deal(0);
-[SINDyGen(1:atkSet.timeToAttack).labels] = deal(0);
+[genDistr(1:atkSet.timeToAttack).data] = deal(0);
+[genDistr(1:atkSet.timeToAttack).labels] = deal(0);
 [atkData(1:atkSet.timeToAttack).points] = deal(0);
 [atkData(1:atkSet.timeToAttack).labels] = deal(0);
 %np = py.importlib.import_module('numpy');
@@ -138,14 +141,20 @@ nseResults = repmat(struct("f_measure",zeros(1,net.mclass),...
                               "precision",zeros(1,net.mclass),...
                               "errs_nse",0),1,numTimeSteps);
 for iTStep = 1:numTimeSteps
-    if iTStep >= atkSet.timeToAttack
+    if iTStep >= atkSet.timeToAttack-1 % dont start attacking until timestep before time to attack
         for iClass = 1:numClasses
-            [SINDyGen(iTStep+1).data(SINDyData(iTStep).("idxC"+iClass),:),...
-            SINDyGen(iTStep+1).labels(SINDyData(iTStep).("idxC"+iClass))]...
-            = SINDyOperations(SINDy,SINDyData,iTStep,iClass);                                     
+            SINDy(iTStep,iClass).buildModel(SINDyData(iTStep,iClass).mu,1,1,iTStep,1);
+            % Generate distribution for next time step
+            % last row of SINDy.model is the predicted time step
+            genDistr(iTStep+1,iClass).data(classInfo(iTStep,iClass).idx) = ...
+                               mvnrnd(SINDy(iTStep,iClass).model(end,:),...
+                                      SINDyData(iTStep,iClass).sigma,...
+                                      classInfo(iTStep,iClass).numObs);
+            genDistr(iTStep+1,iClass).labels(classInfo(iTStep,iClass).idx) = ...
+                          repmat(iClass,classInfo(iTStep,iClass).numObs,1);
         end
     end
-    if iTStep <= atkSet.timeToAttack % Wait time steps before making preditions with SINDy and attacking
+    if iTStep < atkSet.timeToAttack % perform Learn++.NSE 
 		[~,...
 		nseResults(iTStep).f_measure,...
 		nseResults(iTStep).g_mean,...
@@ -156,11 +165,15 @@ for iTStep = 1:numTimeSteps
                                             nseData(iTStep).labelsTrain,...
                                             nseData(iTStep).dataTest,...
                                             nseData(iTStep).labelsTrain);
-    elseif iTStep > atkSet.timeToAttack
-        maxBounds = max(SINDyGen(iTStep).data);
-        minBounds = min(SINDyGen(iTStep).data);
+    elseif iTStep >= atkSet.timeToAttack % perform Learn++.NSE with attack points added
+        maxBounds = max(genDistr(iTStep).data);
+        minBounds = min(genDistr(iTStep).data);
         % need to construct boundary for n dimensional dataset
-        atkSet.boundary = np.array(boundary);
+        for iDim = 1:numDims
+           atkSet.boundary(iDim,1) = minBounds(iDim);
+           atkSet.boundary(iDim,2) = maxBounds(iDim);
+        end
+        %atkSet.boundary = np.array(boundary);
         svmPoisonAttackArgs = pyargs('boundary', atkSet.boundary,...
 							 'step_size', atkSet.step_size,...
 							  'max_steps', int32(atkSet.max_steps),...
@@ -170,11 +183,10 @@ for iTStep = 1:numTimeSteps
 							   'coef0', atkSet.coef0,...
 							   'gamma', atkSet.gamma);
         [atkData(iTStep).points,atkData(iTStep).labels] = ...
-                                    chrisAttacks(SINDyGen(iTStep+1).data,...
-                                                 SINDyGen(iTStep+1).labels,...
+                                    chrisAttacks(genDistr(iTStep).data,...
+                                                 genDistr(iTStep).labels,...
                                                  boundary,...
-                                                 svmPoisonAttackArgs,...
-                                                 numberAttackPoints);
+                                                 svmPoisonAttackArgs);
 		[~,...
 		nseResults(iTStep).f_measure,...
 		nseResults(iTStep).g_mean,...
@@ -188,56 +200,4 @@ for iTStep = 1:numTimeSteps
                                 nseData(iTStep).labelsTrain);
 
     end
-end
-function [data,labels] = SINDyOperations(SINDy,SINDyData,iTStep,iClass)
-    SINDy(iTStep,iClass).buildModel(vertcat(SINDyData(1:iTStep).("muC"+iClass)),1,1,iTStep,1); % data,dt,startTime,endTime,numTimeStepsToPredict,<optionally derivatives>
-    data = mvnrnd(SINDy(iTStep,iClass).model(end,:),...
-                  SINDyData(iTStep).("sigmaC"+iClass),...
-                  SINDyData(iTStep).("numObsC"+iClass));
-    labels = repmat(iClass,SINDyData(iTStep).("numObsC"+iClass),1);
-end
-function [] = DummyFunctionForHoldingCovarianceCode()
-    % Create an array of SINDy objects, the array should be equal in size to the covariance of the data, so 2 dim data is 2x2 Covariance matrix, 1 SINDy Obj for each
-    sindyCovariances = cell(1,numClasses); %{Class}(Array of SINDy Objs, 1 for each value of covariance)
-    [heightCovMat, widthCovMat] = size(classVariances{1,1}); % Get size of Cov Matrix
-    for iClass = 1:numClasses
-        sindyCovariances{iClass}(heightCovMat,widthCovMat) = SINDy(); % Create the array of SINDy Objects
-        % Using the below synatx [objArray.property] = deal(value); will set the property of each object in objArray to value.
-        [sindyCovariances{iClass}.lambda] = deal(2e-6);
-        [sindyCovariances{iClass}.polyOrder] = deal(5);
-        [sindyCovariances{iClass}.useSine] = deal(0);
-        [sindyCovariances{iClass}.sineMultiplier] = deal(10);
-        [sindyCovariances{iClass}.useExp] = deal(0);
-        [sindyCovariances{iClass}.expMultiplier] = deal(10);
-        [sindyCovariances{iClass}.useCustomPoolData] = deal(1);
-        [sindyCovariances{iClass}.nonDynamical] = deal(0);
-        % TVRegDiff parameters for sindy
-        [sindyCovariances{iClass}.useTVRegDiff] = deal(0);
-        [sindyCovariances{iClass}.iter] = deal(sindyCovariances{iClass}.iter); 
-        [sindyCovariances{iClass}.alph] = deal(sindyCovariances{iClass}.alph);
-        [sindyCovariances{iClass}.ep] = deal(sindyCovariances{iClass}.ep);
-        [sindyCovariances{iClass}.scale] = deal(sindyCovariances{iClass}.scale);
-        [sindyCovariances{iClass}.plotflag] = deal(0);
-        [sindyCovariances{iClass}.diagflag] = deal(0);
-    end
-    % Does covariance matrix indexing
-    horzCovLinIdx = 1:widthCovMat;
-    idxOfNxtRow = horzCovLinIdx(end)+1;	
-    rowDiff = idxOfNxtRow - horzCovLinIdx(1,1);
-    covIdx = repmat(horzCovLinIdx,heightCovMat,1);
-    for iRow = 2:heightCovMat
-        covIdx(iRow,:) = covIdx(iRow,:)+(iRow-1)*rowDiff;
-    end
-    %[I,J] = ind2sub([heightCovMat widthCovMat],covIdx);
-    %covSubs = [I(:) J(:)];
-    covSubs = repmat(covIdx,numTimeSteps,1);
-
-    covariance = cell2mat(classVariances(1:iTStep,iClass)); 
-    for iCov = 1:numel(covIdx)
-        idx = covSubs(1:heightCovMat*iTStep,1:widthCovMat) == iCov;
-        sindyCovariances{iClass}(covIdx == iCov).buildModel(covariance(idx),1,1,iTStep,1);
-        sigma{iClass,iTStep+1}(covIdx == iCov) = ...
-            sindyCovariances{iClass}(covIdx == iCov).model(end,1);
-    end
-
 end
