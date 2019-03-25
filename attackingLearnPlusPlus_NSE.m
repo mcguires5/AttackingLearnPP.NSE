@@ -102,9 +102,9 @@ end
 [SINDyArray.diagflag] = deal(0);
 %% paths needed for utilizing chris's library, add the paths for your system and restart matlab if matlab cant find them
 p = py.sys.path;
-insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\')
-insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\poison\')
-insert(p,int32(0),'H:\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\')
+insert(p,int32(0), pwd + "\advlearn\")
+insert(p,int32(0), pwd + "\advlearn\advlearn\attacks\poison\")
+insert(p,int32(0), pwd + "\advlearn\advlearn\attacks\")
 % insert(p,int32(0),'C:\Users\Delengowski-Mobile\Documents\Gits\AttackingLearnPP.NSE\advlearn\')
 % insert(p,int32(0),'C:\Users\Delengowski-Mobile\Documents\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\poison\')
 % insert(p,int32(0),'C:\Users\Delengowski-Mobile\Documents\Gits\AttackingLearnPP.NSE\advlearn\advlearn\attacks\')
