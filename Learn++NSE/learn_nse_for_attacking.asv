@@ -147,7 +147,7 @@ function [net,f_measure,g_mean,precision,recall,err,latestClassifier] = learn_ns
   net.initialized = 1;
   net.t = net.t + 1;
 
-end
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -159,7 +159,7 @@ y = zeros(numel(labels), n_experts);
 for k = 1:n_experts
   y(:, k) = classifier_test(net.classifiers{k}, data);
 end
-end
+
 function [predictions,posterior,y] = classify_ensemble(net, data, labels)
 n_experts = length(net.classifiers);
 weights = net.w(end,:);
@@ -178,4 +178,3 @@ end
 [~,predictions] = max(p');
 predictions = predictions';
 posterior = p./repmat(sum(p,2),1,net.mclass);
-end

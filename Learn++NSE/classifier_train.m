@@ -86,5 +86,5 @@ switch model.type
     model.n_features = n_features;
     model.method = 'classification';
 
-    model.classifier = fitcsvm(data,labels,'KernelFunction','RBF','KernelScale', 'Auto','Standardize',true);
+    model.classifier = fitcsvm(data,labels,'KernelFunction','Linear','KernelScale', 'Auto','Standardize',true);
 end

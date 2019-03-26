@@ -35,10 +35,10 @@ g_mean = zeros(n_timestamps, 1);
 recall = zeros(n_timestamps, net.mclass);
 precision = zeros(n_timestamps, net.mclass);
 err_nse = zeros(n_timestamps, 1);
-for ell = 1:n_timestamps
-[~,f_measure(ell,:),g_mean(ell),precision(ell,:),recall(ell,:),errs_nse(ell)] = learn_nse_for_attacking(net, data_train{ell}, labels_train{ell}, data_test{ell}, ...
-   labels_test{ell});
-end
+
+[~,f_measure,g_mean,precision,recall,errs_nse] = learn_nse(net, data_train, labels_train, data_test, ...
+   labels_test);
+
 
 % reset the parameters of the net struct. 
 model.type = 'SVM';
