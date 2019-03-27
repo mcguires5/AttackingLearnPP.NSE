@@ -217,8 +217,8 @@ classdef SINDy < handle
 					Functions{iFunc} = erase(Functions{iFunc},'*');
 					Functions{iFunc} = ['<HTML>',Functions{iFunc},'</HTML>'];
 				end
-			end
-			f1 = figure;
+            end
+            f1 = figure;
             t = uitable('Data',obj.learnedFunctions{:,:},'ColumnName',derivatives,...
             'RowName',Functions,'Units', 'Normalized', 'Position',[0, 0, 1, 1],'FontSize',15);
             FontSize = 8;
