@@ -2,7 +2,7 @@ classdef SINDy < handle
 % @Author: delengowski
 % @Date:   2019-01-24 18:01:17
 % @Last Modified by:   delengowski
-% @Last Modified time: 2019-03-18 19:17:36
+% @Last Modified time: 2019-04-04 17:25:42
 % This class is used for creating SINDy objects to perform sparse dynamics
 %
 % (S)parse
@@ -132,11 +132,11 @@ classdef SINDy < handle
 		% large relative residual. 
 		diagflag(1,1) logical {mustBeInteger, mustBeFinite} = 0
     end
-    properties(SetAccess = private)
-        model(:,:) double
-        modelTimeVector(:,1) double
-        learnedFunctions table 
-    end
+    %properties(SetAccess = private)
+        %model(:,:) double
+        %modelTimeVector(:,1) double
+        %learnedFunctions table 
+    %end
 	methods % Start public methods
 		function obj = SINDy() % Constructor 
 			addpath(fullfile('SINDy','sparsedynamics','sparsedynamics','utils'));
@@ -144,7 +144,7 @@ classdef SINDy < handle
 			addpath(fullfile('SINDy','VChooseK'));
 			addpath(fullfile('SINDy','findjobj'));
         end
-		function buildModel(obj,data,dt,startTime,endTime,numTimeStepsToPredict,derivatives)
+		function [model, modelTimeVector, learnedFunctions] = buildModel(obj,data,dt,startTime,endTime,numTimeStepsToPredict,derivatives)
 			% buildModel - Builds a model and populates the properties model, modelTimeVector, and learnedFunctions.
 			% Model is a matrix whose rows is a point in time and columns are the dimensions. modelTimeVector is a 
 			% column vector of the time steps, and learnedFunctions is a matlab table obj holding the coefficients 
@@ -175,115 +175,115 @@ classdef SINDy < handle
 			[numTimeSteps, numDims] = size(obj.data);
 			Theta = buildLibrary(obj,numDims);
 			Xi = performSparseDynamics(obj,Theta,numDims);
-            obj.learnedFunctions = createLearnedFunctionsTable(obj,Xi,numDims);
-			[obj.model, obj.modelTimeVector] = performSparseGalerkin(obj,Xi,numDims,numTimeSteps);
+            learnedFunctions = createLearnedFunctionsTable(obj,Xi,numDims);
+			[model, modelTimeVector] = performSparseGalerkin(obj,Xi,numDims,numTimeSteps);
         end
-        function displayLibrary(obj)
-        	% displayLibrary - Displays the library of learned function coefficients in a UI table. Each column
-        	% is the the derivative in that dimension. Each row is 1 function. The coefficients is how 
-        	% much that function contributes that the derivative in that dimension. 
-        	% Example: obj.displayLibrary;
-        	derivatives = obj.learnedFunctions.Properties.VariableNames;
-        	Functions = obj.learnedFunctions.Properties.RowNames;
-        	for iDim = 1:length(derivatives)
-				derivatives{iDim} = ['<HTML><sup>d</sup>&frasl;<sub>dt</sub> d<sub>',num2str(iDim),'</sub></HTML>'];
-			end
-			for iFunc = 1:length(Functions)
-				if Functions{iFunc}(1) == 'd'
-					Functions{iFunc} = insertAfter(Functions{iFunc},'d','<sub>');
-					Functions{iFunc} = insertBefore(Functions{iFunc},'^','</sub>');
-					Functions{iFunc} = insertAfter(Functions{iFunc},'(','<sup>');
-					Functions{iFunc} = insertBefore(Functions{iFunc},')','</sup>');
-					Functions{iFunc} = erase(Functions{iFunc},'^');
-					Functions{iFunc} = erase(Functions{iFunc},'(');
-					Functions{iFunc} = erase(Functions{iFunc},')');
-					Functions{iFunc} = erase(Functions{iFunc},'*');
-					Functions{iFunc} = ['<HTML>',Functions{iFunc},'</HTML>'];
-				end
-				if Functions{iFunc}(1) == 'e'
-					Functions{iFunc} = insertAfter(Functions{iFunc},'d','<sub>');
-					Functions{iFunc} = insertBefore(Functions{iFunc},')','</sub>');
-					Functions{iFunc} = insertAfter(Functions{iFunc},'(','<sup>');
-					Functions{iFunc} = insertAfter(Functions{iFunc},')','</sup>');
-					Functions{iFunc} = erase(Functions{iFunc},'^');
-					Functions{iFunc} = erase(Functions{iFunc},'(');
-					Functions{iFunc} = erase(Functions{iFunc},')');
-					Functions{iFunc} = erase(Functions{iFunc},'*');
-					Functions{iFunc} = ['<HTML>',Functions{iFunc},'</HTML>'];
-				end
-				if contains(Functions{iFunc},'cos') || contains(Functions{iFunc},'sin')
-					Functions{iFunc} = insertAfter(Functions{iFunc},'d','<sub>');
-					Functions{iFunc} = insertBefore(Functions{iFunc},')','</sub>');
-					Functions{iFunc} = erase(Functions{iFunc},'*');
-					Functions{iFunc} = ['<HTML>',Functions{iFunc},'</HTML>'];
-				end
-            end
-            f1 = figure;
-            t = uitable('Data',obj.learnedFunctions{:,:},'ColumnName',derivatives,...
-            'RowName',Functions,'Units', 'Normalized', 'Position',[0, 0, 1, 1],'FontSize',15);
-            FontSize = 8;
-%             hs = '<html><font size="+2">'; %html start
-% 			he = '</font></html>'; %html end
-% 			cnh = cellfun(@(x)[hs x he],derivatives,'uni',false); %with html
-% 			rnh = cellfun(@(x)[hs x he],Functions,'uni',false); %with html
-% 			set(t,'ColumnName',cnh,'RowName',rnh) %apply
-            %get the row header
-			jscroll=findjobj(t);
-			rowHeaderViewport=jscroll.getComponent(4);
-			rowHeader=rowHeaderViewport.getComponent(0);
-			height=rowHeader.getSize;
-			rowHeader.setSize(40,180)
-			%resize the row header
-			newWidth=125; %100 pixels.
-			rowHeaderViewport.setPreferredSize(java.awt.Dimension(newWidth,0));
-			height=rowHeader.getHeight;
-			newHeight = 200;
-			rowHeader.setPreferredSize(java.awt.Dimension(newWidth,height));
-			rowHeader.setSize(newWidth,newHeight);
-        end
-        function displayModel(obj,style)
-        	% displayModel - Plots the modeled data as well as the original data. Will plot traditional 1D, 2D, or 3D
-        	% for data of that size. Or it will display stacked plots of each dimension vs time if specified by the 
-        	% argument <style>. If data is greater than 3 dimensions then it will do stacked plot for each dimension 
-        	% regardless of <style>. 
-        	% Example: obj.displayModel('traditional'); 
-        	% Example: obj.displayModel('stacked');
-        	numDims = size(obj.data,2);
-        	if numDims > 3
-        		style = 'stacked';
-            end
-        	switch style
-        		case 'stacked'
-        			dimensions = 1:numDims;
-        			dimensions = "d" + dimensions;
-        			variables = ["t" dimensions];
-        			T = array2table([obj.modelTimeVector obj.model],'VariableNames',cellstr(variables));
-        			NANS = NaN([(size(obj.model(:,1),1) - size(obj.data(:,1),1)) 1],'double'); 
-        			for iDim = 1:size(obj.data,2)
-        				T.(['dataD',num2str(iDim)]) = [obj.data(:,iDim);NANS];
-        				T = mergevars(T,[string(['d',num2str(iDim)]) string(['dataD',num2str(iDim)])],...
-                                      'NewVariableName',['d',num2str(iDim)]);
-    				end
-    				f1 = figure;
-        			P = stackedplot(T,cellstr(dimensions),"xvar","t");
-        			for iDim = 1:numDims
-        				P.AxesProperties(iDim).LegendLabels{1} = [P.AxesProperties(iDim).LegendLabels{1}(1:end-1) 'data'];
-        				P.AxesProperties(iDim).LegendLabels{2} = [P.AxesProperties(iDim).LegendLabels{2}(1:end-1) 'model'];
-        				P.LineProperties(iDim).LineWidth =[4,2];
-        				P.LineProperties(iDim).LineStyle = {'-',':'};
-    				end
-
-
-				case 'traditional' 
-		        	if numDims == 1
-
-		    		elseif numDims == 2
-
-					elseif numDims == 3
-
-					end					
-			end
-        end
+        %function displayLibrary(obj)
+        	%% displayLibrary - Displays the library of learned function coefficients in a UI table. Each column
+        	%% is the the derivative in that dimension. Each row is 1 function. The coefficients is how 
+        	%% much that function contributes that the derivative in that dimension. 
+        	%% Example: obj.displayLibrary;
+        	%derivatives = obj.learnedFunctions.Properties.VariableNames;
+        	%Functions = obj.learnedFunctions.Properties.RowNames;
+        	%for iDim = 1:length(derivatives)
+				%derivatives{iDim} = ['<HTML><sup>d</sup>&frasl;<sub>dt</sub> d<sub>',num2str(iDim),'</sub></HTML>'];
+			%end
+			%for iFunc = 1:length(Functions)
+				%if Functions{iFunc}(1) == 'd'
+					%Functions{iFunc} = insertAfter(Functions{iFunc},'d','<sub>');
+					%Functions{iFunc} = insertBefore(Functions{iFunc},'^','</sub>');
+					%Functions{iFunc} = insertAfter(Functions{iFunc},'(','<sup>');
+					%Functions{iFunc} = insertBefore(Functions{iFunc},')','</sup>');
+					%Functions{iFunc} = erase(Functions{iFunc},'^');
+					%Functions{iFunc} = erase(Functions{iFunc},'(');
+					%Functions{iFunc} = erase(Functions{iFunc},')');
+					%Functions{iFunc} = erase(Functions{iFunc},'*');
+					%Functions{iFunc} = ['<HTML>',Functions{iFunc},'</HTML>'];
+				%end
+				%if Functions{iFunc}(1) == 'e'
+					%Functions{iFunc} = insertAfter(Functions{iFunc},'d','<sub>');
+					%Functions{iFunc} = insertBefore(Functions{iFunc},')','</sub>');
+					%Functions{iFunc} = insertAfter(Functions{iFunc},'(','<sup>');
+					%Functions{iFunc} = insertAfter(Functions{iFunc},')','</sup>');
+					%Functions{iFunc} = erase(Functions{iFunc},'^');
+					%Functions{iFunc} = erase(Functions{iFunc},'(');
+					%Functions{iFunc} = erase(Functions{iFunc},')');
+					%Functions{iFunc} = erase(Functions{iFunc},'*');
+					%Functions{iFunc} = ['<HTML>',Functions{iFunc},'</HTML>'];
+				%end
+				%if contains(Functions{iFunc},'cos') || contains(Functions{iFunc},'sin')
+					%Functions{iFunc} = insertAfter(Functions{iFunc},'d','<sub>');
+					%Functions{iFunc} = insertBefore(Functions{iFunc},')','</sub>');
+					%Functions{iFunc} = erase(Functions{iFunc},'*');
+					%Functions{iFunc} = ['<HTML>',Functions{iFunc},'</HTML>'];
+				%end
+            %end
+            %f1 = figure;
+            %t = uitable('Data',obj.learnedFunctions{:,:},'ColumnName',derivatives,...
+            %'RowName',Functions,'Units', 'Normalized', 'Position',[0, 0, 1, 1],'FontSize',15);
+            %FontSize = 8;
+%%             hs = '<html><font size="+2">'; %html start
+%% 			he = '</font></html>'; %html end
+%% 			cnh = cellfun(@(x)[hs x he],derivatives,'uni',false); %with html
+%% 			rnh = cellfun(@(x)[hs x he],Functions,'uni',false); %with html
+%% 			set(t,'ColumnName',cnh,'RowName',rnh) %apply
+            %%get the row header
+			%jscroll=findjobj(t);
+			%rowHeaderViewport=jscroll.getComponent(4);
+			%rowHeader=rowHeaderViewport.getComponent(0);
+			%height=rowHeader.getSize;
+			%rowHeader.setSize(40,180)
+			%%resize the row header
+			%newWidth=125; %100 pixels.
+			%rowHeaderViewport.setPreferredSize(java.awt.Dimension(newWidth,0));
+			%height=rowHeader.getHeight;
+			%newHeight = 200;
+			%rowHeader.setPreferredSize(java.awt.Dimension(newWidth,height));
+			%rowHeader.setSize(newWidth,newHeight);
+        %end
+        %function displayModel(obj,style)
+        	%% displayModel - Plots the modeled data as well as the original data. Will plot traditional 1D, 2D, or 3D
+        	%% for data of that size. Or it will display stacked plots of each dimension vs time if specified by the 
+        	%% argument <style>. If data is greater than 3 dimensions then it will do stacked plot for each dimension 
+        	%% regardless of <style>. 
+        	%% Example: obj.displayModel('traditional'); 
+        	%% Example: obj.displayModel('stacked');
+        	%numDims = size(obj.data,2);
+        	%if numDims > 3
+        		%style = 'stacked';
+            %end
+        	%switch style
+        		%case 'stacked'
+        			%dimensions = 1:numDims;
+        			%dimensions = "d" + dimensions;
+        			%variables = ["t" dimensions];
+        			%T = array2table([obj.modelTimeVector obj.model],'VariableNames',cellstr(variables));
+        			%NANS = NaN([(size(obj.model(:,1),1) - size(obj.data(:,1),1)) 1],'double'); 
+        			%for iDim = 1:size(obj.data,2)
+        				%T.(['dataD',num2str(iDim)]) = [obj.data(:,iDim);NANS];
+        				%T = mergevars(T,[string(['d',num2str(iDim)]) string(['dataD',num2str(iDim)])],...
+                                      %'NewVariableName',['d',num2str(iDim)]);
+    				%end
+    				%f1 = figure;
+        			%P = stackedplot(T,cellstr(dimensions),"xvar","t");
+        			%for iDim = 1:numDims
+        				%P.AxesProperties(iDim).LegendLabels{1} = [P.AxesProperties(iDim).LegendLabels{1}(1:end-1) 'data'];
+        				%P.AxesProperties(iDim).LegendLabels{2} = [P.AxesProperties(iDim).LegendLabels{2}(1:end-1) 'model'];
+        				%P.LineProperties(iDim).LineWidth =[4,2];
+        				%P.LineProperties(iDim).LineStyle = {'-',':'};
+    				%end
+%
+%
+				%case 'traditional' 
+		        	%if numDims == 1
+%
+		    		%elseif numDims == 2
+%
+					%elseif numDims == 3
+%
+					%end					
+			%end
+        %end
     end % End Public methods
 	methods (Access = private) % Start private methods
 		function [Theta] = customPoolData(obj,data,numDims)
