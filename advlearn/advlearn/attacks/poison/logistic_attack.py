@@ -10,8 +10,17 @@ from advlearn.utils import Projector
 class LogisticAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
     """A general poisoning attack against logistic regression."""
 
-    def __init__(self, boundary=None, step_size=5, max_steps=5000, opt_method='GD',
-                 penalty='l2', reg_inv=1.0, solver='saga', tol=1e-4):
+    def __init__(
+        self,
+        boundary=None,
+        step_size=5,
+        max_steps=5000,
+        opt_method="GD",
+        penalty="l2",
+        reg_inv=1.0,
+        solver="saga",
+        tol=1e-4,
+    ):
         """A general poisoning attack against logistic regression.
 
         Parameters
@@ -36,7 +45,9 @@ class LogisticAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         self.reg_inv = reg_inv
 
         # Attack Optimization Properties
-        OptimizableAttackMixin.__init__(self, opt_method=opt_method, stepsize=step_size, n_steps=max_steps, atol=tol)
+        OptimizableAttackMixin.__init__(
+            self, opt_method=opt_method, stepsize=step_size, n_steps=max_steps, atol=tol
+        )
 
         # Data
         self.data = None
@@ -121,10 +132,12 @@ class LogisticAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         attack_labels = target_class * np.ones((n_points,))
 
         opt_attack_data = self.attack_optimize(initial_attack_data, attack_labels)
-        #opt_attack_data = self.projector.project(opt_attack_data)
+        # opt_attack_data = self.projector.project(opt_attack_data)
         return opt_attack_data, attack_labels
 
-    def attack_direction(self, attack_data, attack_label, extra_data=None, extra_labels=None):
+    def attack_direction(
+        self, attack_data, attack_label, extra_data=None, extra_labels=None
+    ):
         """ Calculate Attack Direction
 
         For more information, see Wongrassamee 2017.
@@ -168,20 +181,22 @@ class LogisticAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
             data_union = np.vstack((self.data, attack_data))
             labels_union = np.hstack((labels, attack_label))
 
-        assert np.all(np.equal(np.unique(labels_union), np.array([0, 1]))), 'Assert'
+        assert np.all(np.equal(np.unique(labels_union), np.array([0, 1]))), "Assert"
 
         coef, intercept = self._fit_logistic_regression(data_union, labels_union)
 
         # Solve linear system for gradients of coef and intercept
-        d_coef, d_intercept = self._model_gradients(coef, intercept,
-                                                    data_union,
-                                                    attack_data, attack_label)
+        d_coef, d_intercept = self._model_gradients(
+            coef, intercept, data_union, attack_data, attack_label
+        )
 
         # Calculate gradient direction
         term_one = self._run_logistic_regression(self.data.T, coef, intercept) - labels
         term_two = self.data @ d_coef + d_intercept
         reg_term = 0.5 * (coef @ d_coef)
-        direction = self.reg_inv * np.sum(np.multiply(term_one.T, term_two), axis=0) + reg_term
+        direction = (
+            self.reg_inv * np.sum(np.multiply(term_one.T, term_two), axis=0) + reg_term
+        )
 
         # Verify the accuracy of the vectorized direction calculation
         if __debug__:
@@ -189,16 +204,22 @@ class LogisticAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
             for ind in range(self.n_data):
                 data_ind = self.data[ind].reshape(-1, 1)
                 label_ind = labels[ind]
-                term_one_val = self._run_logistic_regression(data_ind, coef, intercept) - label_ind
+                term_one_val = (
+                    self._run_logistic_regression(data_ind, coef, intercept) - label_ind
+                )
                 term_two_val = data_ind.T @ d_coef + d_intercept
                 direction_val += term_one_val * term_two_val
             direction_val *= self.reg_inv
             direction_val += reg_term
-            assert np.allclose(direction, direction_val), 'Vectorized gradient computation incorrect!'
+            assert np.allclose(
+                direction, direction_val
+            ), "Vectorized gradient computation incorrect!"
 
         return direction
 
-    def attack_loss(self, attack_data, attack_label, extra_data=None, extra_labels=None):
+    def attack_loss(
+        self, attack_data, attack_label, extra_data=None, extra_labels=None
+    ):
         """Loss of the attacker objective at a point.
 
         Parameters
@@ -219,7 +240,7 @@ class LogisticAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         """
         # Stop optimization if it goes outside the bounds
         if self.projector.is_out_of_bounds(attack_data):
-            return - np.inf
+            return -np.inf
 
         # Fit logistic regression on union of data and attack points
         if extra_data is not None and extra_labels is not None:
@@ -229,7 +250,7 @@ class LogisticAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
             data_union = np.vstack((self.data, attack_data))
             labels_union = np.hstack((self.labels, attack_label))
 
-        assert np.all(np.equal(np.unique(labels_union), np.array([-1, 1]))), 'Assert'
+        assert np.all(np.equal(np.unique(labels_union), np.array([-1, 1]))), "Assert"
 
         # Fit logistic regression model on training data poisoned with attack
         # points
@@ -239,7 +260,9 @@ class LogisticAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
 
         # Calculate the loss
         pred = (coef @ self.data.T) + intercept
-        loss = (0.5 * (coef @ coef.T) + self.reg_inv * np.sum(np.log(1 + np.exp(-y_true * pred))))
+        loss = 0.5 * (coef @ coef.T) + self.reg_inv * np.sum(
+            np.log(1 + np.exp(-y_true * pred))
+        )
         return loss
 
     def surrogate_model(self):
@@ -250,13 +273,15 @@ class LogisticAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         model : sklearn model
             Model to being attacked
         """
-        model = LogisticRegression(penalty=self.penalty,
-                                   dual=False,
-                                   C=self.reg_inv,
-                                   fit_intercept=True,
-                                   solver=self.solver,
-                                   max_iter=10000,
-                                   multi_class='ovr')
+        model = LogisticRegression(
+            penalty=self.penalty,
+            dual=False,
+            C=self.reg_inv,
+            fit_intercept=True,
+            solver=self.solver,
+            max_iter=10000,
+            multi_class="ovr",
+        )
         return model
 
     ######################
@@ -288,7 +313,7 @@ class LogisticAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         """
 
         # This method assumes the labels are 0 or 1
-        assert y_c == 0 or y_c == 1, 'Assert'
+        assert y_c == 0 or y_c == 1, "Assert"
 
         n_union = data_union.shape[0]
 
@@ -302,18 +327,18 @@ class LogisticAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
             data_ind = data_union[ind].reshape(-1, 1)
             loss_ind = self._run_logistic_regression(data_ind, coef, intercept)
             d_loss_ind = loss_ind * (1 - loss_ind)
-            sigma += (d_loss_ind * (data_ind @ data_ind.T))
-            mean += (d_loss_ind * data_ind)
+            sigma += d_loss_ind * (data_ind @ data_ind.T)
+            mean += d_loss_ind * data_ind
             alpha += d_loss_ind
         sigma *= self.reg_inv
         mean *= self.reg_inv
         alpha *= self.reg_inv
 
         # Regularization changes the sigma term
-        if self.penalty == 'l2':
+        if self.penalty == "l2":
             sigma += 0.5 * np.eye(self.n_features)
         else:
-            raise NotImplementedError('Invalid regularization method!')
+            raise NotImplementedError("Invalid regularization method!")
 
         # Calculate the loss due to the attack point
         x_c = x_c.reshape(-1, 1)
@@ -321,18 +346,19 @@ class LogisticAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         d_loss_c = loss_c * (1 - loss_c)
 
         # Calculate the m and p terms used in the linear system
-        system_m = self.reg_inv * ((loss_c - y_c) * np.eye(self.n_features)) + (d_loss_c * (x_c @ coef))
+        system_m = self.reg_inv * ((loss_c - y_c) * np.eye(self.n_features)) + (
+            d_loss_c * (x_c @ coef)
+        )
         system_p = self.reg_inv * d_loss_c * coef
 
         # Solve the linear system
-        system = np.vstack([np.hstack([sigma, mean]),
-                           np.hstack([mean.T, alpha])])
+        system = np.vstack([np.hstack([sigma, mean]), np.hstack([mean.T, alpha])])
         system_b = -1 * np.vstack((system_m, system_p))
         d_coef_d_intercept = np.linalg.solve(system, system_b)
 
         # Return the model gradients
-        d_coef = d_coef_d_intercept[:self.n_features, :]
-        d_intercept = d_coef_d_intercept[self.n_features:, :]
+        d_coef = d_coef_d_intercept[: self.n_features, :]
+        d_intercept = d_coef_d_intercept[self.n_features :, :]
         return d_coef, d_intercept
 
     # ################### #
@@ -358,7 +384,7 @@ class LogisticAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
 
         # Scikit-learn assumes treats the labels as -1 and 1
         labels[labels == 0] = -1
-        assert np.all(np.equal(np.unique(labels), np.array([-1, 1]))), 'Assert'
+        assert np.all(np.equal(np.unique(labels), np.array([-1, 1]))), "Assert"
 
         model = self.surrogate_model()
         model.fit(data, labels)

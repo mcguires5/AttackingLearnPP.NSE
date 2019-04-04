@@ -33,7 +33,7 @@ class KthNeighbor(BaseEstimator):
 
         nbrs = NearestNeighbors(n_neighbors=2).fit(self.X)
         dists, _ = nbrs.kneighbors(X)
-        mask = dists[:,-1] < self.outlier_distance_threshold
+        mask = dists[:, -1] < self.outlier_distance_threshold
 
         self.X = np.vstack((self.X, X[mask, :]))
 

@@ -3,13 +3,20 @@
 import numpy as np
 from advlearn.defenses.dummy import DummyDefense
 
-X = np.array([[-0.12840393, 0.66446571], [1.32319756, -0.13181616],
-              [0.04296502, -0.37981873], [0.83631853, 0.18569783]])
+X = np.array(
+    [
+        [-0.12840393, 0.66446571],
+        [1.32319756, -0.13181616],
+        [0.04296502, -0.37981873],
+        [0.83631853, 0.18569783],
+    ]
+)
 Y = np.array([1, 2, 2, 2])
 
 
 class TestDummyDefense(object):
     """Test dummy defense"""
+
     def test_defense_transform_x(self):
         """Test the output given only data"""
         model = DummyDefense()

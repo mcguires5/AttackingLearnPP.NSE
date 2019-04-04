@@ -6,11 +6,18 @@ from sklearn.linear_model import Lasso
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import ElasticNet
 from sklearn.metrics import mean_squared_error
-from advlearn.base import BaseAttack, OptimizableAttackMixin, IntelligentAttackMixin, PoisonMixin
+from advlearn.base import (
+    BaseAttack,
+    OptimizableAttackMixin,
+    IntelligentAttackMixin,
+    PoisonMixin,
+)
 from advlearn.utils import Projector
 
 
-class LinearAttack(BaseAttack, OptimizableAttackMixin, IntelligentAttackMixin, PoisonMixin):
+class LinearAttack(
+    BaseAttack, OptimizableAttackMixin, IntelligentAttackMixin, PoisonMixin
+):
     """A general poisoning attack against linear regression.
 
     Defender regularization may be none (linear), L1 (LASSO), L2 (ridge),
@@ -18,14 +25,25 @@ class LinearAttack(BaseAttack, OptimizableAttackMixin, IntelligentAttackMixin, P
 
     Outlier detection may be distance threshold or kth-nearest neighber."""
 
-    def __init__(self, boundary=None,
-                 lasso_lambda=0.1, ridge_alpha=1,
-                 elasticnet_alpha=1, elasticnet_l1_ratio=0.5,
-                 efs_method='lasso',
-                 opt_method='GD', step_size=5, max_steps=5000, atol=1e-4,
-                 outlier_method=None, outlier_weight=1,
-                 outlier_distance_threshold=1, outlier_power=2,
-                 outlier_k=3, surface_size=40):
+    def __init__(
+        self,
+        boundary=None,
+        lasso_lambda=0.1,
+        ridge_alpha=1,
+        elasticnet_alpha=1,
+        elasticnet_l1_ratio=0.5,
+        efs_method="lasso",
+        opt_method="GD",
+        step_size=5,
+        max_steps=5000,
+        atol=1e-4,
+        outlier_method=None,
+        outlier_weight=1,
+        outlier_distance_threshold=1,
+        outlier_power=2,
+        outlier_k=3,
+        surface_size=40,
+    ):
         """General Linear Poison Attack
 
         Parameters
@@ -57,12 +75,23 @@ class LinearAttack(BaseAttack, OptimizableAttackMixin, IntelligentAttackMixin, P
         self.efs_method = efs_method
 
         # Attack Optimization Properties
-        OptimizableAttackMixin.__init__(self, opt_method=opt_method, stepsize=step_size, n_steps=max_steps, atol=atol)
+        OptimizableAttackMixin.__init__(
+            self,
+            opt_method=opt_method,
+            stepsize=step_size,
+            n_steps=max_steps,
+            atol=atol,
+        )
 
         # Intelligent Attack Properties
-        IntelligentAttackMixin.__init__(self, outlier_method=outlier_method, outlier_weight=outlier_weight,
-                                        outlier_distance_threshold=outlier_distance_threshold, outlier_power=outlier_power,
-                                        outlier_k=outlier_k)
+        IntelligentAttackMixin.__init__(
+            self,
+            outlier_method=outlier_method,
+            outlier_weight=outlier_weight,
+            outlier_distance_threshold=outlier_distance_threshold,
+            outlier_power=outlier_power,
+            outlier_k=outlier_k,
+        )
 
         # Other init
         self.data = None
@@ -148,10 +177,12 @@ class LinearAttack(BaseAttack, OptimizableAttackMixin, IntelligentAttackMixin, P
         attack_labels = target_class * np.ones((n_points,))
 
         opt_attack_data = self.attack_optimize(initial_attack_data, attack_labels)
-        #opt_attack_data = self.projector.project(opt_attack_data)
+        # opt_attack_data = self.projector.project(opt_attack_data)
         return opt_attack_data, attack_labels
 
-    def attack_direction(self, attack_data, attack_label, extra_data=None, extra_labels=None):
+    def attack_direction(
+        self, attack_data, attack_label, extra_data=None, extra_labels=None
+    ):
         """Calculate the gradient.
 
         Reference: Xiao et al. 2015.
@@ -187,31 +218,38 @@ class LinearAttack(BaseAttack, OptimizableAttackMixin, IntelligentAttackMixin, P
         coef, intercept = self._fit_linear_regression(data_union, labels_union)
 
         # Compute grad(W)
-        dcoef, dintercept = self._model_gradients(coef, intercept,
-                                                  attack_data, attack_label)
+        dcoef, dintercept = self._model_gradients(
+            coef, intercept, attack_data, attack_label
+        )
         if self.efs_method is None:
             reg_term = 0
-        elif self.efs_method == 'lasso':
+        elif self.efs_method == "lasso":
             reg_term = self.lasso_lambda * (np.sign(coef) @ dcoef)
-        elif self.efs_method == 'ridge':
+        elif self.efs_method == "ridge":
             reg_term = self.lasso_lambda * (coef @ dcoef)
-        elif self.efs_method == 'elasticnet':
-            reg_term = self.lasso_lambda \
-                       * ((self.elasticnet_l1_ratio * np.sign(coef)
-                           + (1 - self.elasticnet_l1_ratio) * coef) @ dcoef)
+        elif self.efs_method == "elasticnet":
+            reg_term = self.lasso_lambda * (
+                (
+                    self.elasticnet_l1_ratio * np.sign(coef)
+                    + (1 - self.elasticnet_l1_ratio) * coef
+                )
+                @ dcoef
+            )
         else:
-            raise ValueError('Invalid embedded feature selection method.')
+            raise ValueError("Invalid embedded feature selection method.")
 
         grad_w_diff = np.tile(
             self._run_linear_regression(self.data, coef, intercept) - self.labels,
-            (self.n_features, 1)
+            (self.n_features, 1),
         )
         grad_w_sum = self.data @ dcoef + np.tile(dintercept, (self.n_data, 1))
 
         direction = np.mean(np.multiply(grad_w_sum, grad_w_diff.T), axis=0) + reg_term
         return direction
 
-    def attack_loss(self, attack_data, attack_label, extra_data=None, extra_labels=None):
+    def attack_loss(
+        self, attack_data, attack_label, extra_data=None, extra_labels=None
+    ):
         """Loss of the attacker objective at a point.
 
         Parameters
@@ -233,7 +271,7 @@ class LinearAttack(BaseAttack, OptimizableAttackMixin, IntelligentAttackMixin, P
 
         # Stop optimization if it goes outside the bounds
         if self.projector.is_out_of_bounds(attack_data):
-            return - np.inf
+            return -np.inf
 
         if extra_data is not None and extra_labels is not None:
             data_union = np.vstack((self.data, extra_data, attack_data))
@@ -258,16 +296,18 @@ class LinearAttack(BaseAttack, OptimizableAttackMixin, IntelligentAttackMixin, P
         """
         if self.efs_method is None:
             model = LinearRegression(fit_intercept=True)
-        elif self.efs_method == 'lasso':
+        elif self.efs_method == "lasso":
             model = Lasso(alpha=self.lasso_lambda, fit_intercept=True)
-        elif self.efs_method == 'ridge':
+        elif self.efs_method == "ridge":
             model = Ridge(alpha=self.ridge_alpha, fit_intercept=True)
-        elif self.efs_method == 'elasticnet':
-            model = ElasticNet(alpha=self.elasticnet_alpha,
-                               l1_ratio=self.elasticnet_l1_ratio,
-                               fit_intercept=True)
+        elif self.efs_method == "elasticnet":
+            model = ElasticNet(
+                alpha=self.elasticnet_alpha,
+                l1_ratio=self.elasticnet_l1_ratio,
+                fit_intercept=True,
+            )
         else:
-            raise ValueError('Invalid efs_method parameter!')
+            raise ValueError("Invalid efs_method parameter!")
 
         return model
 
@@ -296,26 +336,30 @@ class LinearAttack(BaseAttack, OptimizableAttackMixin, IntelligentAttackMixin, P
             Gradient of model intercept
         """
         """Reference: Xiao et al. 2015."""
-        if self.efs_method is None or self.efs_method == 'lasso':
-            sigma = ((1. / self.n_data) * self.data.T @ self.data)
-        elif self.efs_method == 'ridge':
-            sigma = ((1. / self.n_data) * self.data.T @ self.data) \
-                    + self.ridge_alpha * np.eye(self.n_features)
-        elif self.efs_method == 'elasticnet':
-            sigma = ((1. / self.n_data) * self.data.T @ self.data) \
-                    + (self.elasticnet_alpha
-                       * (1 - self.elasticnet_l1_ratio)
-                       * np.eye(self.n_features))
+        if self.efs_method is None or self.efs_method == "lasso":
+            sigma = (1.0 / self.n_data) * self.data.T @ self.data
+        elif self.efs_method == "ridge":
+            sigma = (
+                (1.0 / self.n_data) * self.data.T @ self.data
+            ) + self.ridge_alpha * np.eye(self.n_features)
+        elif self.efs_method == "elasticnet":
+            sigma = ((1.0 / self.n_data) * self.data.T @ self.data) + (
+                self.elasticnet_alpha
+                * (1 - self.elasticnet_l1_ratio)
+                * np.eye(self.n_features)
+            )
         else:
-            raise ValueError('Invalid embedded feature selection method.')
+            raise ValueError("Invalid embedded feature selection method.")
 
         mean = np.mean(self.data, axis=0).reshape((-1, 1))
-        kkt_m = x_c.reshape(-1, 1) @ coef.reshape(1, -1) \
-                + np.eye(self.n_features) * ((x_c @ coef + intercept) - y_c)
+        kkt_m = x_c.reshape(-1, 1) @ coef.reshape(1, -1) + np.eye(self.n_features) * (
+            (x_c @ coef + intercept) - y_c
+        )
 
-        kkt_a = np.vstack([np.hstack([sigma, mean]),
-                           np.hstack([mean.T, np.array([[1]])])])
-        kkt_b = -(1. / self.n_data) * np.vstack((kkt_m, coef.T))
+        kkt_a = np.vstack(
+            [np.hstack([sigma, mean]), np.hstack([mean.T, np.array([[1]])])]
+        )
+        kkt_b = -(1.0 / self.n_data) * np.vstack((kkt_m, coef.T))
 
         dcoef_dintercept = np.linalg.solve(kkt_a, kkt_b)
 

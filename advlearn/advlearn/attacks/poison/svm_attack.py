@@ -11,8 +11,19 @@ from sklearn.metrics.pairwise import rbf_kernel, polynomial_kernel, linear_kerne
 class SVMAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
     """A general poisoning attack against SVM."""
 
-    def __init__(self, boundary=None, opt_method='GD', step_size=5, max_steps=5000,
-                 atol=1e-4, c=1, kernel='rbf', degree=3, coef0=1, gamma='auto'):
+    def __init__(
+        self,
+        boundary=None,
+        opt_method="GD",
+        step_size=5,
+        max_steps=5000,
+        atol=1e-4,
+        c=1,
+        kernel="rbf",
+        degree=3,
+        coef0=1,
+        gamma="auto",
+    ):
         """ Poisoning Support Vector Machines
 
         Parameters
@@ -41,7 +52,13 @@ class SVMAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         self.gamma = gamma
 
         # Attack Optimization Properties
-        OptimizableAttackMixin.__init__(self, opt_method=opt_method, stepsize=step_size, n_steps=max_steps, atol=atol)
+        OptimizableAttackMixin.__init__(
+            self,
+            opt_method=opt_method,
+            stepsize=step_size,
+            n_steps=max_steps,
+            atol=atol,
+        )
 
         # Data
         self.data = None
@@ -127,10 +144,12 @@ class SVMAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         attack_labels = target_class * np.ones((n_points,))
 
         opt_attack_data = self.attack_optimize(initial_attack_data, attack_labels)
-        #opt_attack_data = self.projector.project(opt_attack_data)
+        # opt_attack_data = self.projector.project(opt_attack_data)
         return opt_attack_data, attack_labels
 
-    def attack_direction(self, attack_data, attack_label, extra_data=None, extra_labels=None):
+    def attack_direction(
+        self, attack_data, attack_label, extra_data=None, extra_labels=None
+    ):
         """ Calculate Attack Direction
 
         Parameters
@@ -168,7 +187,7 @@ class SVMAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         model = self._fit_svm(data_training, labels_training)
 
         # NOTE: https://www.quora.com/I-am-getting-negative-alpha-value-for-non-linear-kernel-SVM-but-the-alpha-value-should-lie-between-0-and-C-What-does-negative-alpha-value-mean
-        alpha = np.zeros_like(labels_training, dtype='float64')
+        alpha = np.zeros_like(labels_training, dtype="float64")
         alpha[model.support_] = np.abs(model.dual_coef_.flatten())
 
         margin_sv_ind = np.argwhere(np.logical_and(alpha > 1e-6, alpha < self.c - 1e-6))
@@ -177,21 +196,25 @@ class SVMAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         alpha_c = alpha[-1]
 
         # Evaluate label annotated kernel matrix (for both training and validation)
-        if self.kernel == 'linear':
+        if self.kernel == "linear":
             kernal_training = self._linear_kernel(data_training, data_training)
             kernal_validation = self._linear_kernel(data_validation, data_training)
-        elif self.kernel == 'poly':
+        elif self.kernel == "poly":
             kernal_training = self._polynomial_kernel(data_training, data_training)
             kernal_validation = self._polynomial_kernel(data_validation, data_training)
-        elif self.kernel == 'rbf':
+        elif self.kernel == "rbf":
             kernal_training = self._rbf_kernel(data_training, data_training)
             kernal_validation = self._rbf_kernel(data_validation, data_training)
         else:
-            raise ValueError('Invalid kernel!')
+            raise ValueError("Invalid kernel!")
 
-        annotation_training = np.dot(np.reshape(labels_training, (-1, 1)), np.reshape(labels_training, (1, -1)))
+        annotation_training = np.dot(
+            np.reshape(labels_training, (-1, 1)), np.reshape(labels_training, (1, -1))
+        )
         kernal_training = np.multiply(kernal_training, annotation_training)
-        annotation_validation = np.dot(np.reshape(labels_validation, (-1, 1)), np.reshape(labels_training, (1, -1)))
+        annotation_validation = np.dot(
+            np.reshape(labels_validation, (-1, 1)), np.reshape(labels_training, (1, -1))
+        )
         kernal_validation = np.multiply(kernal_validation, annotation_validation)
 
         # Determine "score" or distance to the seperating hyperplane
@@ -200,13 +223,22 @@ class SVMAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         score = np.multiply(score_raw, labels_validation) - 1
 
         # Determine direction and take step and project onto feasible set
-        direction = self._model_direction(attack_data, attack_label,
-                                          data_union, labels_union,
-                                          alpha_c, margin_sv_ind, score,
-                                          kernal_training, kernal_validation)
+        direction = self._model_direction(
+            attack_data,
+            attack_label,
+            data_union,
+            labels_union,
+            alpha_c,
+            margin_sv_ind,
+            score,
+            kernal_training,
+            kernal_validation,
+        )
         return direction
 
-    def attack_loss(self, attack_data, attack_label, extra_data=None, extra_labels=None):
+    def attack_loss(
+        self, attack_data, attack_label, extra_data=None, extra_labels=None
+    ):
         """Loss of the attacker objective at a point.
 
         Parameters
@@ -228,7 +260,7 @@ class SVMAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
 
         # Stop optimization if it goes outside the bounds
         if self.projector.is_out_of_bounds(attack_data):
-            return - np.inf
+            return -np.inf
 
         if extra_data is not None and extra_labels is not None:
             data_union = np.vstack((self.data, extra_data, attack_data))
@@ -251,18 +283,31 @@ class SVMAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         model : sklearn model
             Model to being attacked
         """
-        model = SVC(C=self.c,
-                    kernel=self.kernel,
-                    degree=self.degree,
-                    coef0=self.coef0,
-                    gamma=self.gamma)
+        model = SVC(
+            C=self.c,
+            kernel=self.kernel,
+            degree=self.degree,
+            coef0=self.coef0,
+            gamma=self.gamma,
+        )
         return model
 
     ######################
     # Internal Utilities #
     ######################
 
-    def _model_direction(self, attack_data, attack_label, data_union, labels_union, alpha_c, margin_sv_ind, score, kernal_training, kernel_validation):
+    def _model_direction(
+        self,
+        attack_data,
+        attack_label,
+        data_union,
+        labels_union,
+        alpha_c,
+        margin_sv_ind,
+        score,
+        kernal_training,
+        kernel_validation,
+    ):
         """ Calculate the gradient
         
         Parameters
@@ -304,42 +349,54 @@ class SVMAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         # Compute R (left side of equation 7)
         y_margin = labels_training[margin_sv_ind]
         kernel_margin = kernal_training[margin_sv_ind, :][:, margin_sv_ind]
-        r = np.vstack((np.hstack([np.array([0]), y_margin]),
-                       np.hstack([np.reshape(y_margin, (-1, 1)), kernel_margin])))
+        r = np.vstack(
+            (
+                np.hstack([np.array([0]), y_margin]),
+                np.hstack([np.reshape(y_margin, (-1, 1)), kernel_margin]),
+            )
+        )
         r = np.linalg.inv(r)
 
         # Kernel Grad
-        if self.kernel == 'linear':
+        if self.kernel == "linear":
             dq_training = data_training[margin_sv_ind, :]
             dq_validation = data_validation
-        elif self.kernel == 'poly':
-            dq_training = self._d_polynomial_kernel(data_training[margin_sv_ind, :], attack_data)
+        elif self.kernel == "poly":
+            dq_training = self._d_polynomial_kernel(
+                data_training[margin_sv_ind, :], attack_data
+            )
             dq_validation = self._d_polynomial_kernel(data_validation, attack_data)
-        elif self.kernel == 'rbf':
-            dq_training = self._d_rbf_kernel(data_training[margin_sv_ind, :], attack_data)
+        elif self.kernel == "rbf":
+            dq_training = self._d_rbf_kernel(
+                data_training[margin_sv_ind, :], attack_data
+            )
             dq_validation = self._d_rbf_kernel(data_validation, attack_data)
         else:
-            raise ValueError('Invalid kernel')
+            raise ValueError("Invalid kernel")
 
         # Compute y_i * x_i and y_s * x_s (for later calculations)
         x_i = np.multiply(np.reshape(labels_validation, (-1, 1)), dq_validation)
-        x_s = np.multiply(np.reshape(labels_training[margin_sv_ind], (-1, 1)), dq_training)
+        x_s = np.multiply(
+            np.reshape(labels_training[margin_sv_ind], (-1, 1)), dq_training
+        )
 
         k = np.vstack([np.zeros((1, x_s.shape[1])), x_s])
-        delta = - np.dot(r, k)
+        delta = -np.dot(r, k)
 
         db = delta[0, :] * alpha_c
         da = delta[1:, :] * alpha_c
 
         kernel_is = kernel_validation[:, margin_sv_ind]
 
-        delta_gi = np.dot(kernel_is, da) + \
-                   alpha_c * attack_label * x_i + \
-                   np.dot(np.reshape(labels_validation, (-1, 1)), np.reshape(db, (1, -1)))
+        delta_gi = (
+            np.dot(kernel_is, da)
+            + alpha_c * attack_label * x_i
+            + np.dot(np.reshape(labels_validation, (-1, 1)), np.reshape(db, (1, -1)))
+        )
 
         delta_gi[score >= 0, :] = 0
 
-        gradient = - np.sum(delta_gi, axis=0)
+        gradient = -np.sum(delta_gi, axis=0)
         direction = gradient / np.linalg.norm(gradient)
 
         if np.isnan(direction).any():
@@ -370,7 +427,7 @@ class SVMAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         # IMPORTANT!!! Scikit-learn uses -1 and 1
         # Although it will convert it internally, we will explicitly do it to make sure it does what we want!
 
-        assert np.all(np.equal(np.unique(labels), np.array([-1, 1]))), 'Assert'
+        assert np.all(np.equal(np.unique(labels), np.array([-1, 1]))), "Assert"
 
         model = self.surrogate_model()
         model.fit(data, labels)
@@ -429,7 +486,18 @@ class SVMAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
             Kernel similarity matrix
         """
 
-        return polynomial_kernel(data_validation, data_training, degree=self.degree, gamma=self.gamma, coef0=self.coef0)
+        if isinstance(self.gamma, str):
+            gamma = 1 / data_training.shape[1]
+        else:
+            gamma = self.gamma
+
+        return polynomial_kernel(
+            data_validation,
+            data_training,
+            degree=self.degree,
+            gamma=gamma,
+            coef0=self.coef0,
+        )
 
     def _d_polynomial_kernel(self, data, x_c):
         """Gradient of polynomial kernel with respect to attack data
@@ -450,7 +518,9 @@ class SVMAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         attack_reshape = x_c.flatten()
 
         for ind in range(data.shape[0]):
-            first_term = (np.dot(data[ind, :], attack_reshape) + self.coef0) ** (self.degree - 1)
+            first_term = (np.dot(data[ind, :], attack_reshape) + self.coef0) ** (
+                self.degree - 1
+            )
             dq[ind, :] = self.degree * first_term * data[ind, :]
 
         return dq
@@ -498,7 +568,14 @@ class SVMAttack(BaseAttack, OptimizableAttackMixin, PoisonMixin):
         kernel = self._rbf_kernel(data, attack_reshape)
         kernel = kernel.flatten()
 
+        if isinstance(self.gamma, str):
+            gamma = 1 / data.shape[1]
+        else:
+            gamma = self.gamma
+
         for ind in range(data.shape[1]):
-            dq[:, ind] = self.gamma * np.multiply(kernel, data[:, ind] - attack_reshape[0, ind])
+            dq[:, ind] = gamma * np.multiply(
+                kernel, data[:, ind] - attack_reshape[0, ind]
+            )
 
         return dq

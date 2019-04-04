@@ -1,3 +1,3 @@
 """Adverserial learning attacks"""
 
-__all__ = ['poison', 'evade', 'dummy']
+__all__ = ["poison", "evade", "dummy"]

@@ -16,8 +16,13 @@ utils
     Module which provides various utility functions
 """
 
-__version__ = '0.1.0'
+__version__ = "0.1.0"
 __all__ = [
-    'base', 'attacks', 'defenses', 'classifier',
-    'ensemble', 'utils', '__version__'
-    ]
+    "base",
+    "attacks",
+    "defenses",
+    "classifier",
+    "ensemble",
+    "utils",
+    "__version__",
+]

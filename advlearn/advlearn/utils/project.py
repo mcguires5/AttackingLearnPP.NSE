@@ -7,11 +7,11 @@ class Projector:
         if boundary is not None:
             self.boundary = boundary
 
-    def fit(self, data, projection='box'):
-        if projection == 'box':
+    def fit(self, data, projection="box"):
+        if projection == "box":
             self.boundary = Projector.box_boundary(data)
         else:
-            raise NotImplementedError('Invalid Projection Type')
+            raise NotImplementedError("Invalid Projection Type")
 
     def is_out_of_bounds(self, data):
         return not np.array_equiv(data, self.project(data))
@@ -34,10 +34,8 @@ class Projector:
         min_bound = np.tile(self.boundary[0, :], (1, 1)).flatten()
         max_bound = np.tile(self.boundary[1, :], (1, 1)).flatten()
 
-        x_proj[data < self.boundary[0, :]] = \
-            min_bound[data < self.boundary[0, :]]
-        x_proj[data > self.boundary[1, :]] = \
-            max_bound[data > self.boundary[1, :]]
+        x_proj[data < self.boundary[0, :]] = min_bound[data < self.boundary[0, :]]
+        x_proj[data > self.boundary[1, :]] = max_bound[data > self.boundary[1, :]]
 
         return x_proj
 

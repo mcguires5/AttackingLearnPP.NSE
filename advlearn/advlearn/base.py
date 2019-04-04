@@ -3,7 +3,7 @@
 import numpy as np
 from copy import deepcopy
 from sklearn.neighbors import NearestNeighbors
-from scipy.optimize import minimize, OptimizeResult
+from scipy.optimize import minimize, OptimizeResult, basinhopping
 from sklearn.base import BaseEstimator
 from abc import ABCMeta, abstractmethod
 
@@ -42,24 +42,30 @@ class BaseAttack(BaseEstimator, metaclass=ABCMeta):
 class OptimizableAttackMixin(object, metaclass=ABCMeta):
     """Mixin for all attacks using gradient optimization methods"""
 
-    def __init__(self, opt_method='GD', stepsize=0.1, n_steps=100, atol=1e-3):
+    def __init__(self, opt_method="GD", stepsize=0.1, n_steps=100, atol=1e-3):
         self.opt_method = opt_method
         self.stepsize = stepsize
         self.n_steps = n_steps
         self.atol = atol
 
-    @abstractmethod
-    def attack_direction(self, x_c, y_c):
-        pass
+    #    @abstractmethod
+    #    def attack_direction(self, x_c, y_c):
+    #        pass
 
     @abstractmethod
     def attack_loss(self, x_c, y_c):
         pass
 
-    def attack_trajectory(self, attack_data, attack_label, extra_data=None, extra_labels=None):
-        result = self._optimize(attack_data, attack_label,
-                                extra_data=extra_data, extra_labels=extra_labels,
-                                trajectory=True)
+    def attack_trajectory(
+        self, attack_data, attack_label, extra_data=None, extra_labels=None
+    ):
+        result = self._optimize(
+            attack_data,
+            attack_label,
+            extra_data=extra_data,
+            extra_labels=extra_labels,
+            trajectory=True,
+        )
         return result.history
 
     def attack_optimize(self, attack_data, attack_labels):
@@ -87,12 +93,16 @@ class OptimizableAttackMixin(object, metaclass=ABCMeta):
             extra_data = attack_data[ind_except != ind, :]
             extra_labels = attack_labels[ind_except != ind]
 
-            result = self._optimize(attack_data_ind, attack_label_ind, extra_data, extra_labels)
+            result = self._optimize(
+                attack_data_ind, attack_label_ind, extra_data, extra_labels
+            )
             opt_attack_data[ind, :] = result.x
 
         return opt_attack_data
 
-    def _optimize(self, attack_data, attack_label, extra_data, extra_labels, trajectory=False):
+    def _optimize(
+        self, attack_data, attack_label, extra_data, extra_labels, trajectory=False
+    ):
         """Optimize an attack point using scipy optimize.
 
         Parameters
@@ -110,33 +120,97 @@ class OptimizableAttackMixin(object, metaclass=ABCMeta):
         """
 
         # As we would like to maximize instead of minimize the function
-        def wrap_jac(jac_attack_data, jac_attack_label, jac_extra_data, jac_extra_labels):
-            return - self.attack_direction(jac_attack_data, jac_attack_label,
-                                           extra_data=jac_extra_data,
-                                           extra_labels=jac_extra_labels).flatten()
+        try:
 
-        def wrap_fun(fun_attack_data, fun_attack_label, fun_extra_data, fun_extra_labels):
-            return - self.attack_loss(fun_attack_data, fun_attack_label,
-                                      extra_data=fun_extra_data,
-                                      extra_labels=fun_extra_labels)
+            def wrap_jac(
+                jac_attack_data, jac_attack_label, jac_extra_data, jac_extra_labels
+            ):
+                return -self.attack_direction(
+                    jac_attack_data,
+                    jac_attack_label,
+                    extra_data=jac_extra_data,
+                    extra_labels=jac_extra_labels,
+                ).flatten()
+
+        except Exception:
+            wrap_jac = None
+
+        def wrap_fun(
+            fun_attack_data, fun_attack_label, fun_extra_data, fun_extra_labels
+        ):
+            return -self.attack_loss(
+                fun_attack_data,
+                fun_attack_label,
+                extra_data=fun_extra_data,
+                extra_labels=fun_extra_labels,
+            )
 
         # Call the scipy optimization routine
-        if self.opt_method == 'GD':
-            result = minimize(wrap_fun, attack_data, method=self._minimize_gd,
-                              args=(attack_label, extra_data, extra_labels),
-                              jac=wrap_jac, options={'stepsize': self.stepsize, 'maxiter': self.n_steps,
-                                                     'atol': self.atol, 'retall': trajectory})
-        elif self.opt_method in ['CG', 'Newton-CG', 'Nelder-Mead']:
-            result = minimize(wrap_fun, attack_data, method=self.opt_method,
-                              args=(attack_label, extra_data, extra_labels),
-                              jac=wrap_jac)
+        if self.opt_method == "GD":
+            result = minimize(
+                wrap_fun,
+                attack_data,
+                method=self._minimize_gd,
+                args=(attack_label, extra_data, extra_labels),
+                jac=wrap_jac,
+                options={
+                    "stepsize": self.stepsize,
+                    "maxiter": self.n_steps,
+                    "atol": self.atol,
+                    "retall": trajectory,
+                },
+            )
+        elif self.opt_method in ["CG", "Newton-CG"]:
+            result = minimize(
+                wrap_fun,
+                attack_data,
+                method=self.opt_method,
+                args=(attack_label, extra_data, extra_labels),
+                jac=wrap_jac,
+                options={"maxiter": self.n_steps},
+            )
+        elif self.opt_method == "Nelder-Mead":
+            result = minimize(
+                wrap_fun,
+                attack_data,
+                method=self.opt_method,
+                args=(attack_label, extra_data, extra_labels),
+                jac=wrap_jac,
+                options={"maxiter": self.n_steps, "xatol": 0, "fatol": 0},
+            )
+        elif self.opt_method == "Powell":
+            result = minimize(
+                wrap_fun,
+                attack_data,
+                method=self.opt_method,
+                args=(attack_label, extra_data, extra_labels),
+                options={"maxiter": self.n_steps, "xtol": 0, "ftol": 0},
+            )
+        elif self.opt_method == "basinhopping":
+            result = basinhopping(
+                wrap_fun,
+                attack_data,
+                minimizer_kwargs={"args": (attack_label, extra_data, extra_labels)},
+                niter=self.n_steps,
+                stepsize=self.stepsize,
+            )
         else:
-            raise ValueError('Invalid optimization method')
+            raise ValueError("Invalid optimization method")
 
         return result
 
-    def _minimize_gd(self, fun, x0, args=(), atol=1e-3, stepsize=0.3, jac=None,
-                     retall=False, maxiter=1000, **kwargs):
+    def _minimize_gd(
+        self,
+        fun,
+        x0,
+        args=(),
+        atol=1e-3,
+        stepsize=0.3,
+        jac=None,
+        retall=False,
+        maxiter=1000,
+        **kwargs
+    ):
         """ Scipy custom gradient descent optimizer
 
         Parameters
@@ -192,9 +266,14 @@ class OptimizableAttackMixin(object, metaclass=ABCMeta):
 
 
 class IntelligentAttackMixin(object):
-    def __init__(self, outlier_method=None, outlier_weight=1,
-                 outlier_distance_threshold=1, outlier_power=2,
-                 outlier_k=3):
+    def __init__(
+        self,
+        outlier_method=None,
+        outlier_weight=1,
+        outlier_distance_threshold=1,
+        outlier_power=2,
+        outlier_k=3,
+    ):
         self.outlier_method = outlier_method
         self.outlier_weight = outlier_weight
         self.outlier_distance_threshold = outlier_distance_threshold
@@ -217,19 +296,21 @@ class IntelligentAttackMixin(object):
 
         if self.outlier_method is None:
             loss_updated = loss
-        elif self.outlier_method == 'distancethreshold':
+        elif self.outlier_method == "distancethreshold":
             nbrs = NearestNeighbors(n_neighbors=1).fit(self.data)
             dists, _ = nbrs.kneighbors(attack_data.reshape(1, -1))
             if dists[0, -1] > self.outlier_distance_threshold:
-                loss_updated = - np.inf
+                loss_updated = -np.inf
             else:
                 loss_updated = loss
-        elif self.outlier_method == 'kthdistance':
+        elif self.outlier_method == "kthdistance":
             nbrs = NearestNeighbors(n_neighbors=self.outlier_k).fit(self.data)
             dists, _ = nbrs.kneighbors(attack_data.reshape(1, -1))
-            loss_updated = loss - self.outlier_weight * (dists[0, -1] ** self.outlier_power)
+            loss_updated = loss - self.outlier_weight * (
+                dists[0, -1] ** self.outlier_power
+            )
         else:
-            raise ValueError('Invalid outlier method')
+            raise ValueError("Invalid outlier method")
 
         return loss_updated
 
@@ -249,24 +330,25 @@ class IntelligentAttackMixin(object):
 
         if self.outlier_method is None:
             direction_updated = direction
-        elif self.outlier_method == 'distancethreshold':
+        elif self.outlier_method == "distancethreshold":
             neighbors = NearestNeighbors(n_neighbors=1).fit(self.data)
             dists, _ = neighbors.kneighbors(attack_data.reshape(1, -1))
             if dists[0, -1] < self.outlier_distance_threshold:
                 direction_updated = direction
             else:
                 direction_updated = np.zeros_like(direction)
-        elif self.outlier_method == 'kthdistance':
-            neighbors = NearestNeighbors(
-                n_neighbors=self.outlier_k).fit(self.data)
+        elif self.outlier_method == "kthdistance":
+            neighbors = NearestNeighbors(n_neighbors=self.outlier_k).fit(self.data)
             _, idx = neighbors.kneighbors(attack_data.reshape(1, -1))
             norm = np.linalg.norm((attack_data - self.data[idx[0, -1]]), ord=2)
-            grad_penalty = self.outlier_power * \
-                           (norm ** (self.outlier_power - 2)) * \
-                           (attack_data - self.data[idx[0, -1]])
+            grad_penalty = (
+                self.outlier_power
+                * (norm ** (self.outlier_power - 2))
+                * (attack_data - self.data[idx[0, -1]])
+            )
             direction_updated = direction - self.outlier_weight * grad_penalty
         else:
-            raise ValueError('Invalid outlier method')
+            raise ValueError("Invalid outlier method")
 
         return direction_updated
 
@@ -274,16 +356,19 @@ class IntelligentAttackMixin(object):
 class PoisonMixin(object):
     """Mixin for all poisoning attacks.
     """
+
     pass
 
 
 class EvadeMixin(object):
     """Mixin for all evasion attacks.
     """
+
     pass
 
 
 class BaseDefense(BaseEstimator):
     """Base class for all defenses.
     """
+
     pass
