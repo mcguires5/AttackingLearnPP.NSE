@@ -53,21 +53,22 @@ stdev = std(clusteredPos);
 %disp(['SINDy Mean: ',num2str(SINDY(end,:))])
 Fail = zeros(1,n);
 drift = false;
-drift = ~any(SINDY(end,:) < curData(end,:) + StdevThresh & SINDY(end,:) > curData(end,:) - StdevThresh);
-% for dim = 1:n
-%     for i = 1:m2
-%         % See where it falls farther than 4 stdev
-%         if curData(i, dim) == SINDY(i, dim)
-%             drift = false;
-%         elseif curData(i, dim) > SINDY(i, dim) + StdevThresh*stdev(dim) || SINDY(i, dim) - StdevThresh*stdev(dim) < curData(i, dim) 
-%             if Fail(dim) == 0
-%                 %disp(['Divergence from SINDy Occured at timestep ', num2str(i), ' in dimension ', num2str(dim)])
-%                 drift = true;
-%                 Fail(dim) = i;
-%             end
-%         end
-%     end
-% end
+(curData(end,:) > SINDY(end,:) + StdevThresh*stdev & SINDY(end,:) - StdevThresh*stdev < curData(end,:))
+drift = either(
+for dim = 1:n
+    for i = 1:m2
+        % See where it falls farther than 4 stdev
+        if curData(i, dim) == SINDY(i, dim)
+            drift = false;
+        elseif curData(i, dim) > SINDY(i, dim) + StdevThresh*stdev(dim) || SINDY(i, dim) - StdevThresh*stdev(dim) < curData(i, dim) 
+            if Fail(dim) == 0
+                %disp(['Divergence from SINDy Occured at timestep ', num2str(i), ' in dimension ', num2str(dim)])
+                drift = true;
+                Fail(dim) = i;
+            end
+        end
+    end
+end
 %if isempty(Fail)
 %   disp(['No Divergence from SINDy  Detected'])
 %end
