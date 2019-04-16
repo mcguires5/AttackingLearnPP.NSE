@@ -5,6 +5,7 @@
 function [attackPoints,attackLabels] = chrisAttacks(data,labels,atkSet)
 	% get input data
     labels(labels == 2) = -1; % Convert labels of class 2 to -1 for svm
+    atkSet.c(atkSet.c == 2) = -1;
 	y = int32(labels);
 	x = data;
     np = py.importlib.import_module('numpy');
@@ -14,7 +15,6 @@ function [attackPoints,attackLabels] = chrisAttacks(data,labels,atkSet)
 	svmPoisonAttackArgs = pyargs('boundary', boundary,...
 							'step_size', atkSet.step_size,...
 							 'max_steps', int32(atkSet.max_steps),...
-							 'c', int32(atkSet.c),...
 							 'kernel', atkSet.kernel,...
 							 'degree', atkSet.degree,...
 							  'coef0', atkSet.coef0,...
@@ -25,7 +25,7 @@ function [attackPoints,attackLabels] = chrisAttacks(data,labels,atkSet)
 	args = pyargs('data', np.array(x), 'labels', np.array(y));
 	% Fit the data??
 	Poison.SVMAttack.fit(attack,args);
-	kwargs = pyargs('self',attack,'n_points', int32(atkSet.numAtkPts));
+	kwargs = pyargs('self',attack,'n_points', int32(atkSet.numAtkPts),'target_class',int32(atkSet.c));
 	% Get attack data
 	attackData = Poison.SVMAttack.attack(kwargs);
 	attackPoints = double(attackData{1});
