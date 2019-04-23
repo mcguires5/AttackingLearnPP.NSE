@@ -1,0 +1,23 @@
+function [atkSet,atkData] = Advlearn_Alone_Preprocessing(kernel,...
+	                                                 maxSteps,stepSize,....
+	                                                 degree,coef0,...
+                                                         numAtkPts,...
+                                                         numObs,numDims,numTimeSteps,...
+                                                         timeStepsInPastToAttack,...
+                                                         c)
+	atkSet.step_size = stepSize;
+	atkSet.timeToAttack = 3;
+	atkSet.max_steps = maxSteps;
+	atkSet.c = c;
+	atkSet.kernel = lower(kernel);
+	atkSet.degree = degree;
+	atkSet.coef0 = coef0;
+	atkSet.gamma = 'auto';
+	atkSet.numAtkPts = numAtkPts;
+	% Mesh and step is for creating boundary of attack
+	% variables to hold attack points and generated data sets
+	atkData = repmat(struct("points",zeros(atkSet.numAtkPts,numDims),...
+	                           "labels",zeros(atkSet.numAtkPts,1)),1,numTimeSteps);
+	[atkData(timeStepsInPastToAttack:end).points] = deal(0);
+	[atkData(timeStepsInPastToAttack:end).labels] = deal(0);
+end
