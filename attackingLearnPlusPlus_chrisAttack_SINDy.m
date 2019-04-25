@@ -4,14 +4,14 @@ function  [classInfo,...
 	   SINDyData,SINDyResults,...
 	   atkData,genDistr] = ...
 	   attackingLearnPlusPlus_chrisAttack_SINDy(dataset,... % General setting
-                                                    kernel,... % Learn++.NSE & AttackSVM setting
-						    lambda,polyOrder,... % SINDy Setting
-					            useSine,sineMultiplier,... % SINDy Setting
-						    useExp,expMultiplier,... % SINDy Setting
-						    maxSteps,stepSize,... % AttackSVM setting
-						    degree,coef0,... % AttackSVM setting
-						    numAtkPts,...
-                                                    c) % AttackSVM setting
+                                                kernel,... % Learn++.NSE & AttackSVM setting
+                                                lambda,polyOrder,... % SINDy Setting
+                                                useSine,sineMultiplier,... % SINDy Setting
+                                                useExp,expMultiplier,... % SINDy Setting
+                                                maxSteps,stepSize,... % AttackSVM setting
+                                                degree,coef0,... % AttackSVM setting
+                                                numAtkPts,...
+                                                c) % AttackSVM setting
      [classInfo,...
      nseData,nseResults,...
      numClasses,numDims,...
@@ -21,7 +21,7 @@ function  [classInfo,...
 	                                                     numClasses,numTimeSteps,...
 	                                                     lambda,polyOrder,...
 	                                                     useSine,sineMultiplier,...
-	                                                     useExp,expMultiplier);
+                                                             useExp,expMultiplier);
 
     [atkSet,atkData,...
      thereIsTimeToAttack,...
@@ -99,23 +99,23 @@ function  [classInfo,...
                                     nseData(iTStep).labelsTest);
             % Check generated distribution vs actual results to determine if we
             % need to reset SINDy
-    %         for iClass = 1:numClasses
-    %             [drift] = checkSINDy(SINDyArray,SINDyData,StdevThresh,iTStep,iClass);
-    %             if drift == true
-    %                 for iTStep2 = iTStep:numTimeSteps
-    %                     SINDyData(iTStep2,iClass).mu = ...
-    %                         SINDyData(iTStep2,iClass).mu(iTStep-SINDyData(iTStep,iClass).latestReset:end,:);
-    %                 end
-    %                 [SINDyData(iTStep:end,iClass).latestReset] = deal(iTStep-1);
-    %                 if iClass == atkSet.c
-    %                     if atkSet.timeToAttack + iTStep > numTimeSteps
-    %                         thereIsTimeToAttack = false;
-    %                     else
-    %                         atkSet.timeToAttack = atkSet.timeToAttack + iTStep;
-    %                     end
-    %                 end
-    %             end
-    %         end
+%             for iClass = 1:numClasses
+%                 [drift] = checkSINDy(SINDyArray,SINDyData,StdevThresh,iTStep,iClass);
+%                 if drift == true
+%                     for iTStep2 = iTStep:numTimeSteps
+%                         SINDyData(iTStep2,iClass).mu = ...
+%                             SINDyData(iTStep2,iClass).mu(iTStep-SINDyData(iTStep,iClass).latestReset:end,:);
+%                     end
+%                     [SINDyData(iTStep:end,iClass).latestReset] = deal(iTStep-1);
+%                     if iClass == atkSet.c
+%                         if atkSet.timeToAttack + iTStep > numTimeSteps
+%                             thereIsTimeToAttack = false;
+%                         else
+%                             atkSet.timeToAttack = atkSet.timeToAttack + iTStep;
+%                         end
+%                     end
+%                 end
+%             end
         else
             [nseResults(iTStep).net,...
             nseResults(iTStep).f_measure,...

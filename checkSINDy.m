@@ -1,6 +1,6 @@
-function [drift] = checkSINDy(SINDyArray,SINDyData,StdevThresh,iTStep,iClass)
-    train = SINDyArray(iTStep-1,iClass).data;
+function [drift] = checkSINDy(SINDyResults,SINDyData,StdevThresh,iTStep,iClass)
+    train = SINDyResults(1,iClass).data;
     curData = SINDyData(iTStep,iClass).mu;    
-    SINDY = SINDyArray(iTStep-1,iClass).model;
-    [drift, ~] = detectDrift(train, curData, SINDY, StdevThresh);
+    model = SINDyResults(1,iClass).model;
+    [drift, ~] = detectDrift(train, curData, model, StdevThresh);
 end
