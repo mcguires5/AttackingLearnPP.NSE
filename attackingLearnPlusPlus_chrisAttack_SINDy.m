@@ -32,6 +32,7 @@ function  [classInfo,...
                                                        numObs,numDims,numTimeSteps,c);
 
     for iTStep = 1:numTimeSteps
+        disp(iTStep)
         if (iTStep >= atkSet.timeToAttack-1 && thereIsTimeToAttack) % dont start attacking until timestep before time to attack
             for iClass = 1:numClasses
                 [model, SINDyResults(iTStep,iClass).learnedFunctions] = ...

@@ -1,5 +1,5 @@
 pathsForCode();
-dataset = "X2CDT_FastMoving";
+dataset = "X2CDT_FastMovingx8";
 kernel = "Linear";
 lambda = 8e-3;
 polyOrder = 1;
@@ -7,8 +7,8 @@ useSine = 0;
 sineMultiplier = 10;
 useExp = 0;
 expMultiplier = 10;
-maxSteps = 250;
-stepSize = 5;
+maxSteps = 150; %250
+stepSize = 10; %5
 degree = 3;
 coef0 = 1;
 c = 2; % Class to attack
