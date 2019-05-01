@@ -21,6 +21,7 @@ function  [nseData,nseResults,...
                                                     c);
 
     for iTStep = 1:numTimeSteps
+        disp(iTStep)
         if ((iTStep - timeStepsInPastToAttack) <= 0) % Can't attack further back then we have information for
             if (iTStep == 1) % Learn++.NSE gets t = 1 nseResults.net 
             [nseResults(iTStep).net,...
