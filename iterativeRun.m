@@ -22,7 +22,7 @@ f = waitbar(0,'Running baseline Learn++.NSE');
 	   LearnPlusPLusNSE_Baseline(DataSet,... % General setting
                                      Kernel); 
 
-numRunTimes = 1000;
+numRunTimes = 2;
 Errors = cell(numRunTimes,2);
 Errors(:) = {zeros(1,40)};
 
