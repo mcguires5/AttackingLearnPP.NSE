@@ -1,0 +1,6 @@
+Paper: Incremental evolving domain adapation
+5412 instances
+512 attributes
+2 classes
+2 week osbervation period
+roughly 20 samples per hour
