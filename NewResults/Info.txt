@@ -1,0 +1,28 @@
+Going to run the following sets through 100 interations to average out the results. 
+
+X2CDT
+X2CDT_FastMoving
+X2CDT_FasterMoving
+X2CDT_FastMovingx8
+GEARS_2C_2D
+
+For those, I will run them 100 times and store a plot of the KL divergence to test how well SINDy does. 
+
+I may run just KL Divergence tests on the rest of the datasets to see how SINDy does tracking those. 
+
+All against class 2 with the following settings
+
+Kernel = "Linear";
+lambda = 8e-3;
+polyOrder = 1;
+useSine = 0;
+sineMultiplier = 10;
+useExp = 0;
+expMultiplier = 10;
+maxSteps = 150; %250
+stepSize = 10; %5
+degree = 3;
+coef0 = 1;
+c = 2; % Class to attack
+numAtkPts = 40;
+timeStepsInPastToAttack = 4;
