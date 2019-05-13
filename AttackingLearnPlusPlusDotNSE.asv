@@ -352,7 +352,7 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
 %                 RealDistrPDF(iClass).Data = mvnpdf(,RealMu,RealCov);
                 SINDyResults(iTStep,iClass).KLDiv = sqrt(1 - ...
                                                     ((det(RealCov)^(1/4)*det(PredCov)^(1/4))/(det((RealCov+PredCov)/2)^(1/2)))*...
-                                                    exp((-1/8)*(RealMu - PredMu)*(((RealCov+PredCov)/2))^(-1)*(RealMu - PredMu)'));
+                                                    exp((-1/8)*(RealMu - PredMu)'*(((RealCov+PredCov)/2))^(-1)*(RealMu - PredMu)));
             end
             end
         end
