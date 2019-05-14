@@ -1,7 +1,7 @@
 pathsForCode();
 close all
 clc
-DataSet = "X2CDT_FastMovingx8";
+DataSet = "X2CDT";
 Kernel = "Linear";
 lambda = 8e-3;
 polyOrder = 1;
@@ -13,10 +13,10 @@ maxSteps = 150; %250
 stepSize = 10; %5
 degree = 3;
 coef0 = 1;
-c = 2; % Class to attack
+c = 1; % Class to attack
 numAtkPts = 40;
 timeStepsInPastToAttack = 4;
-global f
+%global f
 f = waitbar(0,'Running baseline Learn++.NSE');
 [nseData_Baseline,nseResults_Baseline,...
 	   ~,~,~,~] = ...
@@ -40,8 +40,8 @@ AttackingLearnPlusPlusDotNSE(DataSet,"PredictiveOptimized",Kernel,...
                              "TimeStepsInPastToAttack",timeStepsInPastToAttack,...
                              "ReturnPlottingInfo",1);
 
-%Errors{iRT,1} = [NseResultsOptAtks.Error];
-ErrorAdvLearnSINDy = [NseResultsOptAtks.Error];
+Errors{iRT,1} = [NseResultsOptAtks.Error];
+%ErrorAdvLearnSINDy = [NseResultsOptAtks.Error];
 waitbar(iRT/numRunTimes,f,"Performing attack iteration " + iRT + "/" + numRunTimes + "(Non Predictive Attack)");
 
 [NseResultsAtks] = ...
@@ -51,16 +51,16 @@ AttackingLearnPlusPlusDotNSE(DataSet,"NonPredictiveOptimized",Kernel,...
                              "ClassToAttack",c,"NumAttackPoints",numAtkPts,...
                              "TimeStepsInPastToAttack",timeStepsInPastToAttack);
 
-%Errors{iRT,2} = [NseResultsAtks.Error];
-ErrorAdvLearn  = [NseResultsAtks.Error];
+Errors{iRT,2} = [NseResultsAtks.Error];
+%ErrorAdvLearn  = [NseResultsAtks.Error];
 
-blah1 = readmatrix("AdvLearnSINDy.txt");
-blah1 = [blah1;ErrorAdvLearnSINDy];
-writematrix(blah1,"AdvLearnSINDy.txt");
-
-blah2 = readmatrix("AdvLearn.txt");
-blah2 = [blah2;ErrorAdvLearn];
-writematrix(blah2,"AdvLearn.txt");
+% blah1 = readmatrix("AdvLearnSINDy.txt");
+% blah1 = [blah1;ErrorAdvLearnSINDy];
+% writematrix(blah1,"AdvLearnSINDy.txt");
+% 
+% blah2 = readmatrix("AdvLearn.txt");
+% blah2 = [blah2;ErrorAdvLearn];
+% writematrix(blah2,"AdvLearn.txt");
 
 end
 profile viewer
