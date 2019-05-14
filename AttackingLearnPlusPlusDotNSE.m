@@ -272,6 +272,7 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
 	if (AttackMethod == "PredictiveOptimized")
 	% MAIN CODE for Predictive-Optimized Attacks
 	for iTStep = 1:NumTimeSteps
+        disp("Timestep: "+iTStep)
 		% dont start attacking until timestep before time to attack
         if (iTStep >= WindowSize) 
             for iClass = 1:NumClasses
@@ -363,8 +364,9 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
 
 	% MAIN CODE for Non-Predictive-Optimized Attacks
 	if (AttackMethod == "NonPredictiveOptimized")
-
+        
         for iTStep = 1:NumTimeSteps
+        disp("Timestep: "+iTStep)
         % Can't attack further back then we have information for
         if ((iTStep - TimeStepsInPastToAttack) <= 0)
 

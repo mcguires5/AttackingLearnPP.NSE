@@ -8,7 +8,7 @@ GEARS_2C_2D
 
 For those, I will run them 100 times and store a plot of the KL divergence to test how well SINDy does. 
 
-I may run just KL Divergence tests on the rest of the datasets to see how SINDy does tracking those. 
+There is plots of hellinger distance ot show SINDy tracks for each dataset too
 
 All against class 2 with the following settings
 

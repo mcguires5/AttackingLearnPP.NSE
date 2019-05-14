@@ -13,9 +13,10 @@ maxSteps = 150; %250
 stepSize = 10; %5
 degree = 3;
 coef0 = 1;
-c = 1; % Class to attack
+c = 2; % Class to attack
 numAtkPts = 40;
 timeStepsInPastToAttack = 4;
+global f
 f = waitbar(0,'Running baseline Learn++.NSE');
 [nseData_Baseline,nseResults_Baseline,...
 	   ~,~,~,~] = ...
