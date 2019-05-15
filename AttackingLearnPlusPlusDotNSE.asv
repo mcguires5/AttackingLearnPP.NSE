@@ -1,7 +1,7 @@
 % @Author: delengowski
 % @Date:   2019-04-30 17:18:49
-% @Last Modified by:   delengowski
-% @Last Modified time: 2019-05-11 18:17:00
+% @Last Modified by:   Delengowski_Mobile
+% @Last Modified time: 2019-05-14 12:18:45
 function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMethod,Kernel,varargin)
 
 	% Create input parser
@@ -48,6 +48,7 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
     addOptional(parser,"WindowSize",3,WindowSizeValidation);
     addOptional(parser,"TimeStepsInPastToAttack",1)
     addOptional(parser,"ReturnPlottingInfo",0);
+    addOptional(parser,"StopAttackingAt",inf);
 
 	% Check inputs
 	parse(parser,DataSet,AttackMethod,Kernel,varargin{:});
@@ -75,6 +76,7 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
 	NumAttackPoints = parser.Results.NumAttackPoints;
     WindowSize = parser.Results.WindowSize;
 	TimeStepsInPastToAttack = parser.Results.TimeStepsInPastToAttack;
+	StopAttackingAt = parser.Results.StopAttackingAt;
         % General Setting
 	ReturnPlottingInfo = parser.Results.ReturnPlottingInfo;
     
@@ -272,8 +274,9 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
 	if (AttackMethod == "PredictiveOptimized")
 	% MAIN CODE for Predictive-Optimized Attacks
 	for iTStep = 1:NumTimeSteps
+        %disp("Timestep: "+iTStep)
 		% dont start attacking until timestep before time to attack
-        if (iTStep >= WindowSize) 
+        if (iTStep >= WindowSize && iTStep < StopAttackingAt) 
             for iClass = 1:NumClasses
                 [model, ~,SINDyResults(iTStep,iClass).LearnedFunctions] = ...
                 SINDyArray(iClass).buildModel(SINDyData(iTStep,iClass).Mu,...
@@ -292,7 +295,7 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
                               repmat(iClass,ClassInfo(iTStep,iClass).NumObs,1);
             end
         end
-        if (iTStep <= WindowSize) % perform Learn++.NSE 
+        if (iTStep <= WindowSize && iTStep < StopAttackingAt) % perform Learn++.NSE 
             if iTStep == 1
                 [NseResults(iTStep).Net,...
                 NseResults(iTStep).FMeasure,...
@@ -318,7 +321,7 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
                                                     NseData(iTStep).DataTest,...
                                                     NseData(iTStep).LabelsTest);
             end
-        elseif (iTStep > WindowSize) % perform Learn++.NSE with attack points added
+        elseif (iTStep > WindowSize && iTStep < StopAttackingAt) % perform Learn++.NSE with attack points added
 
             % need to construct boundary for n dimensional dataset
             AtkSettings.Boundary = [min(GenDistr(iTStep).Data);max(GenDistr(iTStep).Data)];
@@ -344,18 +347,38 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
                 Idx = ClassInfo(iTStep,iClass).Idx;
                 RealDistr = NseData(iTStep).DataTrain(Idx,:);
                 PredDistr = GenDistr(iTStep).Data(Idx,:);
+                MixDistr = 0.5*(RealDistr+PredDistr); % For JS Div
                 PredMu = mean(PredDistr); 
                 PredCov = cov(PredDistr);
                 RealCov = cov(RealDistr);
                 RealMu = mean(RealDistr);
-%                 PredDistrPDF(iClass).Data = mvnpdf(,PredMu,PredCov);
-%                 RealDistrPDF(iClass).Data = mvnpdf(,RealMu,RealCov);
-                SINDyResults(iTStep,iClass).KLDiv = sqrt(1 - ...
-                                                    ((det(RealCov)^(1/4)*det(PredCov)^(1/4))/(det((RealCov+PredCov)/2)^(1/2)))*...
-                                                    exp((-1/8)*(RealMu - PredMu)'*(((RealCov+PredCov)/2))^(-1)*(RealMu - PredMu)));
+                MixMu = mean(MixDistr);
+                MixCov = cov(MixDistr);
+                Cov1 = PredCov;
+                Cov0 = RealCov;
+                Mu1 = PredMu;
+                Mu0 = RealMu;
+                k = NumDims;
+%                 PredDistrPDF(iClass).Data = mvnpdf(PredDistr,PredMu,PredCov);
+%                 RealDistrPDF(iClass).Data = mvnpdf(RealDistr,RealMu,RealCov);
+                SINDyResults(iTStep,iClass).HellDist = HellingerDistance(Mu1,Mu0,Cov1,Cov0);
+                SINDyResults(iTStep,iClass).KLDiv = KLDivergence(Mu1,Mu0,Cov1,Cov0,k);
+                SINDyResults(
             end
             end
-        end
+        elseif (iTStep > WindowSize && iTStep > iTStep < StopAttackingAt)
+        	[NseResults(iTStep).Net,...
+                NseResults(iTStep).FMeasure,...
+                NseResults(iTStep).GMean,...
+                NseResults(iTStep).Precision,...
+                NseResults(iTStep).Recall,...
+                NseResults(iTStep).Error,...
+                NseResults(iTStep).LatestClassifier] = learn_nse_for_attacking(NseResults(iTStep-1).Net,...
+                                                    NseData(iTStep).DataTrain,...
+                                                    NseData(iTStep).LabelsTrain,...
+                                                    NseData(iTStep).DataTest,...
+                                                    NseData(iTStep).LabelsTest);
+    	end
     end
 	end
     % END MAIN CODE for Predictive-Optimized Attacks
@@ -363,10 +386,11 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
 
 	% MAIN CODE for Non-Predictive-Optimized Attacks
 	if (AttackMethod == "NonPredictiveOptimized")
-
+        
         for iTStep = 1:NumTimeSteps
+        %disp("Timestep: "+iTStep)
         % Can't attack further back then we have information for
-        if ((iTStep - TimeStepsInPastToAttack) <= 0)
+        if ((iTStep - TimeStepsInPastToAttack) <= 0 && iTStep < StopAttackingAt)
 
         % Learn++.NSE gets t = 1 nseResults.net 
         if (iTStep == 1) 
@@ -397,7 +421,7 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
         end
 
         % At this point enough time steps have past to start generating attack points based on previous distributions
-        else 
+        elseif(iTStep < StopAttackingAt)
 
         AtkTimeStep = iTStep - TimeStepsInPastToAttack;
         AtkTimeStepData = vertcat(NseData(AtkTimeStep).DataTrain,NseData(AtkTimeStep).DataTest);
@@ -418,7 +442,20 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
                                                        [NseData(iTStep).LabelsTrain;AtkData(iTStep).Labels'],...
                                                        NseData(iTStep).DataTest,...
                                                        NseData(iTStep).LabelsTest);
-        end
+        elseif(iTStep > StopAttackingAt)
+        	[NseResults(iTStep).Net,...
+                NseResults(iTStep).FMeasure,...
+                NseResults(iTStep).GMean,...
+                NseResults(iTStep).Precision,...
+                NseResults(iTStep).Recall,...
+                NseResults(iTStep).Error,...
+                NseResults(iTStep).LatestClassifier] = learn_nse_for_attacking(NseResults(iTStep-1).Net,...
+                                                    NseData(iTStep).DataTrain,...
+                                                    NseData(iTStep).LabelsTrain,...
+                                                    NseData(iTStep).DataTest,...
+                                                    NseData(iTStep).LabelsTest);
+
+    	end
     end
     % END MAIN CODE for Non-Predictive-Optimized Attacks
 
@@ -443,4 +480,15 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
 
 end
 
+function Div = KLDivergence(Mu1,Mu0,Cov1,Cov0,k)
+Div = 0.5*(trace(inv(Cov1)*Cov0)+(Mu1-Mu0)*inv(Cov1)*(Mu1-Mu0)'-k+log(det(Cov1)/det(Cov0)));
+end
+
+function Dist = HellingerDistance(Mu1,Mu0,Cov1,Cov0)
+Dist = sqrt(1 - ((det(Cov1)^(1/4)*det(Cov0)^(1/4))/det((Cov1+Cov0)/2)^(1/2))*exp((-1/8)*(Mu1-Mu0)*inv((Cov1+Cov0)/2)*(Mu1-Mu0)'));
+end
+
+function Div = JSDivergence(Mu1,Mu0,MixMu,Cov1,Cov0,MixCov,k)
+    Div = 0.5*(KLDivergence(Mu1,MixMu,Cov1,MixCov,k) + KLDivergence(Mu0,MixMu,Cov0,MixCov,k));
+end
 

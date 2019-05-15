@@ -347,15 +347,23 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
                 Idx = ClassInfo(iTStep,iClass).Idx;
                 RealDistr = NseData(iTStep).DataTrain(Idx,:);
                 PredDistr = GenDistr(iTStep).Data(Idx,:);
+                MixDistr = 0.5*(RealDistr+PredDistr); % For JS Div
                 PredMu = mean(PredDistr); 
                 PredCov = cov(PredDistr);
                 RealCov = cov(RealDistr);
                 RealMu = mean(RealDistr);
-%                 PredDistrPDF(iClass).Data = mvnpdf(,PredMu,PredCov);
-%                 RealDistrPDF(iClass).Data = mvnpdf(,RealMu,RealCov);
-                SINDyResults(iTStep,iClass).KLDiv = sqrt(1 - ...
-                                                    ((det(RealCov)^(1/4)*det(PredCov)^(1/4))/(det((RealCov+PredCov)/2)^(1/2)))*...
-                                                    exp((-1/8)*(RealMu - PredMu)*(((RealCov+PredCov)/2))^(-1)*(RealMu - PredMu)'));
+                MixMu = mean(MixDistr);
+                MixCov = cov(MixDistr);
+                Cov1 = PredCov;
+                Cov0 = RealCov;
+                Mu1 = PredMu;
+                Mu0 = RealMu;
+                k = NumDims;
+%                 PredDistrPDF(iClass).Data = mvnpdf(PredDistr,PredMu,PredCov);
+%                 RealDistrPDF(iClass).Data = mvnpdf(RealDistr,RealMu,RealCov);
+                SINDyResults(iTStep,iClass).HellDist = HellingerDistance(Mu1,Mu0,Cov1,Cov0);
+                SINDyResults(iTStep,iClass).KLDiv = KLDivergence(Mu1,Mu0,Cov1,Cov0,k);
+                SINDyResults(iTStep,iClass).JSDiv = JSDivergence(Mu1,Mu0,MixMu,Cov1,Cov0,MixCov,k);
             end
             end
         elseif (iTStep > WindowSize && iTStep > iTStep < StopAttackingAt)
@@ -472,4 +480,15 @@ function [NseResults,varargout] = AttackingLearnPlusPlusDotNSE(DataSet,AttackMet
 
 end
 
+function Div = KLDivergence(Mu1,Mu0,Cov1,Cov0,k)
+Div = 0.5*(trace(inv(Cov1)*Cov0)+(Mu1-Mu0)*inv(Cov1)*(Mu1-Mu0)'-k+log(det(Cov1)/det(Cov0)));
+end
+
+function Dist = HellingerDistance(Mu1,Mu0,Cov1,Cov0)
+Dist = sqrt(1 - ((det(Cov1)^(1/4)*det(Cov0)^(1/4))/det((Cov1+Cov0)/2)^(1/2))*exp((-1/8)*(Mu1-Mu0)*inv((Cov1+Cov0)/2)*(Mu1-Mu0)'));
+end
+
+function Div = JSDivergence(Mu1,Mu0,MixMu,Cov1,Cov0,MixCov,k)
+    Div = 0.5*(KLDivergence(Mu1,MixMu,Cov1,MixCov,k) + KLDivergence(Mu0,MixMu,Cov0,MixCov,k));
+end
 
